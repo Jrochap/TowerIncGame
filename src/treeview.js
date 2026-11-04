@@ -122,6 +122,11 @@ export class TreeView {
     this.tip.innerHTML = h;
   }
 
+  // flash a set of nodes (after an Auto-Install)
+  popMany(ids) {
+    for (const id of ids) { const n = NODE_MAP[id]; this.pops.push({ x: n.x, y: n.y, t: 0, color: BRANCHES[n.branch].color, r: n.size }); }
+  }
+
   tryBuy(n) {
     if (this.opts.onBuy(n.id)) {
       this.pops.push({ x: n.x, y: n.y, t: 0, color: BRANCHES[n.branch].color, r: n.size });

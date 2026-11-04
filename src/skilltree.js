@@ -228,6 +228,31 @@ export function buyNode(save, id) {
   return true;
 }
 
+// Auto-Install: repeatedly buy the cheapest available level (never capstones), optionally limited to
+// one branch and optionally including Overclock levels. dry=true only previews.
+export function autoInstall(save, { branch = 'all', oc = false, dry = false } = {}) {
+  const tree = dry ? { ...save.tree } : save.tree;
+  let cores = save.cores, levels = 0, spent = 0;
+  const bought = new Set();
+  const pool = NODES.filter(n => !n.cap && n.id !== 'core' && (branch === 'all' || n.branch === branch));
+  for (let guard = 0; guard < 20000; guard++) {
+    let best = null, bc = Infinity;
+    for (const n of pool) {
+      const l = tree[n.id] || 0;
+      if (l >= n.max && !(oc && n.oc)) continue;
+      if (!nodeAvailable(n, tree)) continue;
+      const c = nodeCost(n, l);
+      if (c < bc) { bc = c; best = n; }
+    }
+    if (!best || bc > cores) break;
+    cores -= bc; spent += bc; levels++;
+    tree[best.id] = (tree[best.id] || 0) + 1;
+    bought.add(best.id);
+  }
+  if (!dry) save.cores = cores;
+  return { levels, spent, bought: [...bought] };
+}
+
 export function respec(save) {
   let refund = 0;
   for (const n of NODES) {

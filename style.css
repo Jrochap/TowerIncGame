@@ -175,7 +175,7 @@ button.active { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 1
   75% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-20px); }
 }
-#toasts { position: fixed; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 12; pointer-events: none; }
+#toasts { position: fixed; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 35; pointer-events: none; }
 .toast {
   background: rgba(14,10,26,.88); border-left: 3px solid var(--brass); padding: 7px 12px; font-size: 12px;
   border-radius: 3px; animation: toast 3.2s forwards; max-width: 360px;
@@ -221,6 +221,12 @@ h1 .t2 { color: var(--mag); margin-left: .2em; text-shadow: 0 0 18px var(--mag),
 .tree-top { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; padding: 10px 14px; white-space: nowrap; }
 .tree-top .title { font-family: 'Orbitron'; font-weight: 900; letter-spacing: .2em; color: var(--brass-hi); }
 .tree-top button.big { padding: 9px 18px; font-size: 12px; }
+.ai-group { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 8px; border: 1px dashed rgba(34,238,255,.35); border-radius: 4px; }
+.ai-group select { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--ink); background: #17111f; border: 1px solid #3b2d4f; border-radius: 3px; padding: 4px 6px; }
+.ai-oc { font-size: 11px; color: var(--dim); display: flex; align-items: center; gap: 3px; cursor: pointer; }
+.ai-oc input { accent-color: #fff2c0; }
+button.ai-btn { border-color: var(--cyan); color: var(--cyan); }
+button.ai-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
 .tree-legend { position: absolute; left: 12px; bottom: 12px; padding: 10px 14px; font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
 .tree-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
 .tree-hint { position: absolute; right: 14px; bottom: 14px; font-size: 11px; color: var(--dim); }

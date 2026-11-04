@@ -7,24 +7,24 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=202611041534">
+<link rel="stylesheet" href="style.css?v=202611041614">
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-    "./src/audio.js": "./src/audio.js?v=202611041534",
-    "./src/config.js": "./src/config.js?v=202611041534",
-    "./src/foundry.js": "./src/foundry.js?v=202611041534",
-    "./src/game.js": "./src/game.js?v=202611041534",
-    "./src/main.js": "./src/main.js?v=202611041534",
-    "./src/save.js": "./src/save.js?v=202611041534",
-    "./src/skilltree.js": "./src/skilltree.js?v=202611041534",
-    "./src/stats.js": "./src/stats.js?v=202611041534",
-    "./src/treeview.js": "./src/treeview.js?v=202611041534",
-    "./src/ui.js": "./src/ui.js?v=202611041534",
-    "./src/util.js": "./src/util.js?v=202611041534",
-    "./src/world.js": "./src/world.js?v=202611041534"
+    "./src/audio.js": "./src/audio.js?v=202611041614",
+    "./src/config.js": "./src/config.js?v=202611041614",
+    "./src/foundry.js": "./src/foundry.js?v=202611041614",
+    "./src/game.js": "./src/game.js?v=202611041614",
+    "./src/main.js": "./src/main.js?v=202611041614",
+    "./src/save.js": "./src/save.js?v=202611041614",
+    "./src/skilltree.js": "./src/skilltree.js?v=202611041614",
+    "./src/stats.js": "./src/stats.js?v=202611041614",
+    "./src/treeview.js": "./src/treeview.js?v=202611041614",
+    "./src/ui.js": "./src/ui.js?v=202611041614",
+    "./src/util.js": "./src/util.js?v=202611041614",
+    "./src/world.js": "./src/world.js?v=202611041614"
   }
 }
 </script>
@@ -170,6 +170,11 @@
   <div class="tree-top panel">
     <div class="title">SKILL MATRIX</div>
     <div class="res cores"><span class="ico">◈</span><span id="tree-cores">0</span></div>
+    <div class="ai-group">
+      <select id="ai-branch" title="Which branch Auto-Install spends on"></select>
+      <label class="ai-oc" title="Also buy Overclock levels on maxed nodes"><input id="ai-oc" type="checkbox"> OC</label>
+      <button id="btn-autoinstall" class="small ai-btn" title="Spend cores on the cheapest available levels (capstones excluded)">Auto-Install</button>
+    </div>
     <button id="btn-respec" class="small">Respec</button>
     <button id="btn-tree-back">Back</button>
     <button id="btn-tree-deploy" class="big">Deploy ▶</button>
@@ -179,6 +184,6 @@
   <div class="tree-hint">Drag to pan · Scroll to zoom · Click a node to buy</div>
 </div>
 
-<script type="module" src="src/main.js?v=202611041534"></script>
+<script type="module" src="src/main.js?v=202611041614"></script>
 </body>
 </html>

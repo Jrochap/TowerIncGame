@@ -4,7 +4,7 @@ import { UI } from './ui.js';
 import { Game } from './game.js';
 import { TreeView } from './treeview.js';
 import { loadSave, writeSave, wipeSave, exportSave, parseSave } from './save.js';
-import { buyNode, respec } from './skilltree.js';
+import { buyNode, respec, autoInstall, nodeGated, NODES, BRANCHES } from './skilltree.js';
 import { syncFoundry, buyFoundry, reforge, blueprintsFor, BP_MIN_WAVE } from './foundry.js';
 import { fmt } from './util.js';
 import { sfx } from './audio.js';
@@ -24,10 +24,39 @@ const tree = new TreeView($('tree-canvas'), $('tree-tip'), {
     sfx.play('treeBuy');
     writeSave(save);
     game.refreshMeta();
-    $('tree-cores').textContent = fmt(save.cores);
+    refreshTreeBar();
     return true;
   },
 });
+
+// ── Auto-Install (Skill Matrix top bar) ──
+function renderAiBranches() {
+  const sel = $('ai-branch'), ai = save.autoInstall;
+  const opts = [['all', 'All branches'], ...Object.entries(BRANCHES)
+    .filter(([k]) => k !== 'core' && NODES.some(n => n.branch === k && !nodeGated(n)))
+    .map(([k, b]) => [k, b.name])];
+  if (!opts.some(([k]) => k === ai.branch)) ai.branch = 'all';
+  sel.innerHTML = opts.map(([k, name]) => `<option value="${k}"${k === ai.branch ? ' selected' : ''}>${name}</option>`).join('');
+  $('ai-oc').checked = !!ai.oc;
+}
+function refreshTreeBar() {
+  $('tree-cores').textContent = fmt(save.cores);
+  const p = autoInstall(save, { ...save.autoInstall, dry: true });
+  const b = $('btn-autoinstall');
+  b.textContent = p.levels ? `Auto-Install · ${fmt(p.levels)} lv · ◈ ${fmt(p.spent)}` : 'Auto-Install';
+  b.disabled = p.levels === 0;
+}
+$('ai-branch').onchange = e => { save.autoInstall.branch = e.target.value; writeSave(save); refreshTreeBar(); };
+$('ai-oc').onchange = e => { save.autoInstall.oc = e.target.checked; writeSave(save); refreshTreeBar(); };
+$('btn-autoinstall').onclick = () => {
+  const r = autoInstall(save, save.autoInstall);
+  if (!r.levels) { sfx.play('deny'); return; }
+  sfx.play('treeBuy');
+  writeSave(save); game.refreshMeta();
+  tree.popMany(r.bought);
+  refreshTreeBar();
+  ui.toast(`Auto-Install: ${fmt(r.levels)} levels across ${r.bought.length} nodes · ◈ ${fmt(r.spent)}`);
+};
 
 let screen = 'menu';
 let treeReturn = 'menu';
@@ -39,7 +68,7 @@ function setScreen(name) {
   $('hud').classList.toggle('hidden', !playing);
   $('shop').classList.toggle('hidden', !playing);
   world.controls.autoRotate = name === 'menu';
-  if (name === 'tree') { tree.open(); $('tree-cores').textContent = fmt(save.cores); } else tree.close();
+  if (name === 'tree') { tree.open(); renderAiBranches(); refreshTreeBar(); } else tree.close();
   if (name === 'menu') ui.renderMenu(save);
   if (name === 'foundry') ui.renderFoundry(save);
   const showFoundry = save.reforges > 0 || save.blueprints > 0 || save.bestWave >= BP_MIN_WAVE;
@@ -125,7 +154,7 @@ $('btn-abandon').onclick = () => { setScreen('play'); setPaused(false); game.sel
 $('btn-respec').onclick = () => {
   if (!confirm('Refund every Skill Matrix node for its full core cost?')) return;
   respec(save); syncFoundry(save); writeSave(save); game.refreshMeta();
-  $('tree-cores').textContent = fmt(save.cores);
+  refreshTreeBar();
 };
 document.querySelectorAll('[data-auto-mode]').forEach(b => {
   b.onclick = () => { save.autobuy.mode = b.dataset.autoMode; writeSave(save); ui.updateShop(game); };

@@ -42,6 +42,10 @@ Each branch ends in a 400-core capstone. Commerce also holds the **Clockwork Cle
 Workshop upgrades. It can buy only the rows you mark AUTO (cheapest first) or anything it can
 afford (random, weighted toward cheaper upgrades). Each level makes it faster.
 
+**Auto-Install** (Skill Matrix top bar) spends your cores on the cheapest available levels, one at a
+time, across all branches or just one, optionally including Overclocks. It never buys capstones. The
+button previews how many levels and cores it will spend.
+
 Once a node is maxed you can keep buying **Overclock** levels past its cap at a much steeper price.
 One-off unlocks, capstones, and nodes that add whole counts (projectiles, pierce, missiles, beams)
 can't be overclocked. Respec refunds overclocks too.
