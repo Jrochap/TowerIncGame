@@ -1,8 +1,8 @@
 // Tower Inc. — DOM HUD: bars, resources, workshop, floating numbers, banners, end screens.
 import { SHOP } from './config.js';
-import { NODES } from './skilltree.js';
+import { NODES, nodeGated } from './skilltree.js';
 import { fmt } from './util.js';
-import { FOUNDRY, FOUNDRY_GROUPS, foundryCost, blueprintsFor, startWaveFor, BP_MIN_WAVE } from './foundry.js';
+import { FOUNDRY, FOUNDRY_GROUPS, foundryCost, blueprintsFor, startWaveFor, BP_MIN_WAVE, HAZARDS, hazardBonus, hazardsUnlocked } from './foundry.js';
 
 const $ = id => document.getElementById(id);
 
@@ -191,15 +191,17 @@ export class UI {
 
   // ───────────────────────────── screens ─────────────────────────────
   renderMenu(save) {
-    const owned = NODES.filter(n => n.id !== 'core' && (save.tree[n.id] || 0) > 0).length;
+    const visible = NODES.filter(n => n.id !== 'core' && !nodeGated(n));
+    const owned = visible.filter(n => (save.tree[n.id] || 0) > 0).length;
     const pres = save.reforges > 0 || save.blueprints > 0;
     $('menu-stats').innerHTML = `
       <div>Best wave<b>${save.bestWave}</b></div>
       ${pres ? `<div>Best ever<b>${save.bestEver}</b></div>` : ''}
       <div>Aether cores<b style="color:var(--cyan)">${fmt(save.cores)} ◈</b></div>
       ${pres ? `<div>Blueprints<b style="color:var(--bp)">${fmt(save.blueprints)} ✎</b></div>` : ''}
-      <div>Matrix nodes<b>${owned}/${NODES.length - 1}</b></div>
+      <div>Matrix nodes<b>${owned}/${visible.length}</b></div>
       ${pres ? `<div>Reforges<b>${save.reforges}</b></div>` : ''}
+      ${save.reforges > 0 && hazardBonus(save.hazards) > 0 ? `<div>Contracts<b style="color:#ff8a3d">+${Math.round(hazardBonus(save.hazards) * 100)}%</b></div>` : ''}
       <div>Shifts worked<b>${save.runs}</b></div>`;
     const sw = startWaveFor(save);
     $('btn-start').textContent = !save.runs ? 'Begin First Shift' : sw > 1 ? `Begin Shift · Wave ${sw}` : 'Begin Shift';
@@ -213,6 +215,18 @@ export class UI {
       ? `Best wave this cycle <b>${save.bestWave}</b> → Reforge now for <b>+${fmt(bp)} ✎</b>`
       : `<span class="no">Reach wave ${BP_MIN_WAVE} or deeper to earn Blueprints (best this cycle: ${save.bestWave}).</span>`;
     $('btn-reforge').disabled = bp <= 0;
+    const hzOn = hazardsUnlocked(save);
+    $('hazards').classList.toggle('hidden', !hzOn);
+    if (hzOn) {
+      const tot = hazardBonus(save.hazards);
+      $('hz-total').innerHTML = tot > 0 ? `+${Math.round(tot * 100)}% cores &amp; Blueprints` : 'No contracts signed';
+      $('hz-list').innerHTML = HAZARDS.map(h => `
+        <button class="hz${save.hazards[h.id] ? ' on' : ''}" data-hz="${h.id}">
+          <span class="hz-ico">${h.icon}︎</span>
+          <span class="hz-name">${h.name}<b>+${Math.round(h.bonus * 100)}%</b></span>
+          <span class="hz-desc">${h.desc}</span>
+        </button>`).join('');
+    }
     const wrap = $('foundry-groups');
     wrap.innerHTML = '';
     for (const g of FOUNDRY_GROUPS) {
@@ -249,6 +263,7 @@ export class UI {
       <div class="ds-row"><span>Shift length</span><b>${m}:${String(s).padStart(2, '0')}</b></div>
       ${info.siphoned ? `<div class="ds-row"><span>Cores siphoned mid-shift</span><b>+${fmt(info.siphoned)} ◈</b></div>` : ''}
       <div class="ds-row big"><span>Aether cores extracted</span><b>+${fmt(info.earned)} ◈</b></div>
+      ${info.hazardBonus > 0 ? `<div class="ds-row"><span>Hazard contracts</span><b style="color:#ff8a3d">+${Math.round(info.hazardBonus * 100)}%</b></div>` : ''}
       ${info.reforgeBp > 0 ? `<div class="ds-row"><span>Reforge value (The Foundry)</span><b style="color:var(--bp)">${fmt(info.reforgeBp)} ✎</b></div>` : ''}`;
   }
 }

@@ -1,11 +1,12 @@
 // Tower Inc. — the Foundry: prestige layer. Reforging wipes cores, the Skill Matrix and the best
 // wave in exchange for Blueprints, which buy permanent upgrades here.
-import { NODES, setTreeMods } from './skilltree.js';
+import { NODES, setTreeMods, nodeGated } from './skilltree.js';
 
 export const FOUNDRY_GROUPS = [
   { id: 'prog', name: 'Acceleration', color: '#ffc94d' },
   { id: 'build', name: 'Reconstruction', color: '#4dabff' },
   { id: 'power', name: 'Hardening', color: '#ff4d6d' },
+  { id: 'proto', name: 'Prototypes', color: '#7df9ff' },
 ];
 
 // apply(stats, level) runs after the Skill Matrix and before the Workshop.
@@ -42,15 +43,36 @@ export const FOUNDRY = [
     eff: l => `×${fmtX(Math.pow(1.2, l))} damage (all weapons)`, apply: (s, l) => { s.allDmgMult *= Math.pow(1.2, l); } },
   { id: 'f_hp', group: 'power', icon: '▦', name: 'Reinforced Foundations', max: 25, cost: 2, g: 1.4,
     eff: l => `×${fmtX(Math.pow(1.2, l))} max HP and regeneration`, apply: (s, l) => { const m = Math.pow(1.2, l); s.hpMult *= m; s.regenMult *= m; } },
+  { id: 'f_drones', group: 'proto', icon: '⌬', name: 'Drone Bay', max: 1, cost: 12, g: 1,
+    desc: 'Opens a new Drone Bay cluster on the outer rim of the Skill Matrix (beyond Integrated Fire Control). Its nodes reset on Reforge like the rest of the Matrix.',
+    eff: () => 'Drone Bay schematics unlocked', meta: m => { m.drones = true; } },
   { id: 'f_rate', group: 'power', icon: '≫', name: 'Governor Removal', max: 10, cost: 3, g: 1.6,
     eff: l => `+${4 * l}% rate of all weapons`, apply: (s, l) => { s.allRateMult *= 1 + 0.04 * l; } },
 ];
 export const FOUNDRY_MAP = Object.fromEntries(FOUNDRY.map(f => [f.id, f]));
 
+// ── Hazard contracts: opt-in enemy traits (unlocked after the first Reforge). Each one adds to the
+// core and Blueprint payout of runs played with it. Toggled between runs; a run keeps the set it began with.
+export const HAZARDS = [
+  { id: 'shield', icon: '◍', name: 'Aegis Plating', bonus: 0.15, desc: 'Half of all enemies carry a barrier equal to their full HP (bosses: 50%).' },
+  { id: 'split', icon: '⁘', name: 'Mitosis Cores', bonus: 0.15, desc: 'Non-boss enemies burst into 2 swarmlings (35% of their HP each) when destroyed. Splits pay no bounty.' },
+  { id: 'regen', icon: '♻', name: 'Nanite Swarms', bonus: 0.1, desc: 'Enemies regenerate 8% of max HP per second after 1s without being hit.' },
+  { id: 'plated', icon: '▣', name: 'Ablative Hulls', bonus: 0.2, desc: 'Each hit is reduced by 1.5% of the enemy\'s max HP (bosses 0.3%). Big hits shrug it off.' },
+  { id: 'swift', icon: '»', name: 'Overclocked Legs', bonus: 0.15, desc: 'Enemies move 45% faster.' },
+  { id: 'volatile', icon: '✸', name: 'Volatile Payloads', bonus: 0.1, desc: 'Enemies destroyed within 8m of the tower detonate for 60% of their attack damage.' },
+];
+export const HAZARD_MAP = Object.fromEntries(HAZARDS.map(h => [h.id, h]));
+export const hazardsUnlocked = save => save.reforges > 0;
+export function hazardBonus(hz = {}) {
+  let b = 0;
+  for (const h of HAZARDS) if (hz[h.id]) b += h.bonus;
+  return b;
+}
+
 export const foundryCost = (f, lvl) => Math.ceil(f.cost * Math.pow(f.g, lvl));
 
 export function foundryMeta(foundry = {}) {
-  const m = { bpMult: 1, startWave: 0, seedCores: 0, treeMult: 1, capMult: 1, freeLevels: 0 };
+  const m = { bpMult: 1, startWave: 0, seedCores: 0, treeMult: 1, capMult: 1, freeLevels: 0, drones: false };
   for (const f of FOUNDRY) { const l = foundry[f.id] || 0; if (l > 0 && f.meta) f.meta(m, l); }
   return m;
 }
@@ -59,12 +81,13 @@ export function applyFoundry(s, foundry = {}) {
   for (const f of FOUNDRY) { const l = foundry[f.id] || 0; if (l > 0 && f.apply) f.apply(s, l); }
 }
 
-// Blueprints for Reforging now. Nothing below wave 41; grows with depth.
+// Blueprints for Reforging now. Nothing below wave 41; grows with depth. The best single run of the
+// cycle counts, including its hazard bonus (recorded in save.cycleBp when the run ends).
 export const BP_MIN_WAVE = 41;
+export const rawBlueprints = (wave, hz) => wave < BP_MIN_WAVE ? 0 : Math.pow(wave - 40, 1.5) / 13 * (1 + hazardBonus(hz));
 export function blueprintsFor(save) {
-  const w = save.bestWave;
-  if (w < BP_MIN_WAVE) return 0;
-  return Math.floor(Math.pow(w - 40, 1.5) / 13 * foundryMeta(save.foundry).bpMult);
+  const raw = Math.max(save.cycleBp || 0, rawBlueprints(save.bestWave, {}));
+  return Math.floor(raw * foundryMeta(save.foundry).bpMult);
 }
 
 // Wave a run starts at: Express Elevator level, capped at half the best wave since Reforging (rounded down to 10s).
@@ -76,9 +99,9 @@ export function startWaveFor(save) {
 // Push Foundry discounts into Skill Matrix pricing and pre-install free levels. Call on load and after any change.
 export function syncFoundry(save) {
   const m = foundryMeta(save.foundry);
-  setTreeMods({ mult: m.treeMult, capMult: m.capMult, free: m.freeLevels });
+  setTreeMods({ mult: m.treeMult, capMult: m.capMult, free: m.freeLevels, drones: m.drones });
   if (m.freeLevels > 0) {
-    for (const n of NODES) if (n.max > 1 && !n.cap) save.tree[n.id] = Math.max(save.tree[n.id] || 0, Math.min(n.max, m.freeLevels));
+    for (const n of NODES) if (n.max > 1 && !n.cap && !nodeGated(n)) save.tree[n.id] = Math.max(save.tree[n.id] || 0, Math.min(n.max, m.freeLevels));
   }
 }
 
@@ -103,6 +126,7 @@ export function reforge(save) {
   save.reforges++;
   save.bestEver = Math.max(save.bestEver, save.bestWave);
   save.bestWave = 0;
+  save.cycleBp = 0;
   save.tree = { core: 1 };
   save.cores = foundryMeta(save.foundry).seedCores;
   syncFoundry(save);

@@ -2,7 +2,7 @@ const KEY = 'towerinc.save.v1';
 
 export function defaultSave() {
   return { cores: 0, tree: { core: 1 }, bestWave: 0, runs: 0, totalKills: 0, totalCores: 0, autobuy: { mode: 'any', sel: {} },
-    blueprints: 0, totalBlueprints: 0, reforges: 0, bestEver: 0, foundry: {} };
+    blueprints: 0, totalBlueprints: 0, reforges: 0, bestEver: 0, foundry: {}, hazards: {}, cycleBp: 0 };
 }
 
 // Fill in fields missing from older saves (nested objects merged too).
@@ -10,7 +10,7 @@ function normalize(d) {
   const def = defaultSave();
   const ab = { ...def.autobuy, ...(d.autobuy || {}) };
   ab.sel = { ...(ab.sel || {}) };
-  const out = { ...def, ...d, tree: { core: 1, ...(d.tree || {}) }, autobuy: ab, foundry: { ...(d.foundry || {}) } };
+  const out = { ...def, ...d, tree: { core: 1, ...(d.tree || {}) }, autobuy: ab, foundry: { ...(d.foundry || {}) }, hazards: { ...(d.hazards || {}) } };
   out.bestEver = Math.max(out.bestEver || 0, out.bestWave || 0);
   return out;
 }

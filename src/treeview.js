@@ -1,5 +1,5 @@
 // Tower Inc. — interactive Skill Matrix rendered on a 2D canvas (pan, zoom, hover, buy).
-import { NODES, NODE_MAP, BRANCHES, SPACING, nodeCost, nodeState, ocLevel, canOverclock } from './skilltree.js';
+import { NODES, NODE_MAP, BRANCHES, SPACING, nodeCost, nodeState, ocLevel, canOverclock, nodeGated } from './skilltree.js';
 
 // effect text at fractional-free but large levels can produce float noise (e.g. 8.800000001)
 const tidy = t => t.replace(/\d+\.\d{3,}/g, m => String(Math.round(+m * 10) / 10));
@@ -56,7 +56,9 @@ export class TreeView {
   open() {
     this.running = true;
     this.resize();
-    this.zoom = Math.min(1, Math.min(this.W, this.H) / (SPACING * 17.5));
+    // fit the whole visible matrix (unlocked prototype clusters sit outside the outer ring)
+    const fitR = Math.max(SPACING * 8.75, ...NODES.filter(n => !nodeGated(n)).map(n => Math.hypot(n.x, n.y) + SPACING));
+    this.zoom = Math.min(1, Math.min(this.W, this.H) / (fitR * 2));
     this.px = 0; this.py = 10;
     this.hover = null; this.tip.classList.add('hidden');
     this.renderLegend();
@@ -74,7 +76,7 @@ export class TreeView {
 
   renderLegend() {
     const el = document.getElementById('tree-legend');
-    el.innerHTML = Object.entries(BRANCHES).filter(([k]) => k !== 'core')
+    el.innerHTML = Object.entries(BRANCHES).filter(([k, b]) => k !== 'core' && !(b.gate && NODES.every(n => n.branch !== k || nodeGated(n))))
       .map(([, b]) => `<div><i style="background:${b.color}"></i>${b.name}</div>`).join('');
   }
 
@@ -84,7 +86,7 @@ export class TreeView {
     if (!this.running) return;
     const [wx, wy] = this.toWorld(this.mx, this.my);
     let hit = null;
-    for (const n of NODES) if (Math.hypot(n.x - wx, n.y - wy) < n.size + 5) { hit = n; break; }
+    for (const n of NODES) if (!nodeGated(n) && Math.hypot(n.x - wx, n.y - wy) < n.size + 5) { hit = n; break; }
     this.hover = hit;
     if (!hit) { this.tip.classList.add('hidden'); return; }
     this.renderTip(hit);
@@ -155,15 +157,17 @@ export class TreeView {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     for (const [k, b] of Object.entries(BRANCHES)) {
       if (k === 'core' || k === 'syn') continue;
-      const a = b.angle * Math.PI / 180;
+      if (b.gate && NODES.some(n => n.branch === k && nodeGated(n))) continue;
+      const a = b.angle * Math.PI / 180, dist = b.gate ? 12.1 : 8.3;
       g.fillStyle = b.color; g.globalAlpha = 0.45;
       g.font = '900 30px Orbitron, sans-serif';
-      g.fillText(b.name.toUpperCase(), Math.cos(a) * SPACING * 8.3, Math.sin(a) * SPACING * 8.3);
+      g.fillText(b.name.toUpperCase(), Math.cos(a) * SPACING * dist, Math.sin(a) * SPACING * dist);
     }
     g.globalAlpha = 1;
 
     // connections
     for (const n of NODES) {
+      if (nodeGated(n)) continue;
       const col = BRANCHES[n.branch].color, lo = (save.tree[n.id] || 0) > 0;
       for (const rid of n.req) {
         const r = NODE_MAP[rid], lr = (save.tree[rid] || 0) > 0;
@@ -180,7 +184,7 @@ export class TreeView {
     }
     g.globalAlpha = 1;
 
-    for (const n of NODES) this.drawNode(g, n, save);
+    for (const n of NODES) if (!nodeGated(n)) this.drawNode(g, n, save);
 
     // purchase / denial pops
     for (let i = this.pops.length - 1; i >= 0; i--) {

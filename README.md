@@ -58,6 +58,16 @@ in three groups:
   starting cores after each Reforge, and a Clockwork Clerk that is always on at full speed.
 - **Hardening:** compounding damage and HP multipliers, plus weapon rate.
 
+**Hazard contracts** unlock after your first Reforge. Each is an opt-in enemy trait (barriers,
+splitting, regeneration, damage-soaking hulls, speed, death explosions) that adds 10–20% to the cores
+and Blueprint value of runs played under it. The best run of the cycle, bonus included, sets the
+Reforge payout.
+
+The **Drone Bay** prototype (Foundry, 12 Blueprints) opens a seven-node cluster on the Skill
+Matrix's outer rim, beyond Integrated Fire Control. Rotor drones dive at the toughest enemies
+anywhere in range, splash and paint them (painted enemies take extra damage from everything), and
+chain strikes without flying home.
+
 If the field fills up (260 enemies) and the tower can't clear it, **siege pressure** builds and
 enemies hit harder until the crowd thins, so a stalled run always ends.
 
@@ -69,7 +79,7 @@ enemies hit harder until the crowd thins, so a stalled run always ends.
 |---|---|
 | `src/config.js` | base stats, enemy types, wave scaling curves, Workshop upgrades |
 | `src/skilltree.js` | Skill Matrix nodes, layout, buy/respec, Overclock pricing |
-| `src/foundry.js` | Foundry upgrades, Blueprint formula, Reforge |
+| `src/foundry.js` | Foundry upgrades, hazard contracts, Blueprint formula, Reforge |
 | `src/stats.js` | folds tree and Workshop levels into final stats |
 | `src/game.js` | run simulation: waves, enemies, weapons, economy |
 | `src/world.js` | Three.js scene, tower model, city, pooled meshes, particles/effects, bloom |

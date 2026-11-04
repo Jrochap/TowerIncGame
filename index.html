@@ -7,24 +7,24 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=202611041453">
+<link rel="stylesheet" href="style.css?v=202611041534">
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-    "./src/audio.js": "./src/audio.js?v=202611041453",
-    "./src/config.js": "./src/config.js?v=202611041453",
-    "./src/foundry.js": "./src/foundry.js?v=202611041453",
-    "./src/game.js": "./src/game.js?v=202611041453",
-    "./src/main.js": "./src/main.js?v=202611041453",
-    "./src/save.js": "./src/save.js?v=202611041453",
-    "./src/skilltree.js": "./src/skilltree.js?v=202611041453",
-    "./src/stats.js": "./src/stats.js?v=202611041453",
-    "./src/treeview.js": "./src/treeview.js?v=202611041453",
-    "./src/ui.js": "./src/ui.js?v=202611041453",
-    "./src/util.js": "./src/util.js?v=202611041453",
-    "./src/world.js": "./src/world.js?v=202611041453"
+    "./src/audio.js": "./src/audio.js?v=202611041534",
+    "./src/config.js": "./src/config.js?v=202611041534",
+    "./src/foundry.js": "./src/foundry.js?v=202611041534",
+    "./src/game.js": "./src/game.js?v=202611041534",
+    "./src/main.js": "./src/main.js?v=202611041534",
+    "./src/save.js": "./src/save.js?v=202611041534",
+    "./src/skilltree.js": "./src/skilltree.js?v=202611041534",
+    "./src/stats.js": "./src/stats.js?v=202611041534",
+    "./src/treeview.js": "./src/treeview.js?v=202611041534",
+    "./src/ui.js": "./src/ui.js?v=202611041534",
+    "./src/util.js": "./src/util.js?v=202611041534",
+    "./src/world.js": "./src/world.js?v=202611041534"
   }
 }
 </script>
@@ -154,6 +154,12 @@
       </div>
       <button id="btn-reforge" class="big danger-big">Reforge</button>
     </div>
+    <div id="hazards" class="hazards panel hidden">
+      <div class="hz-head"><div class="rf-title hz-title">HAZARD CONTRACTS</div><div id="hz-total" class="hz-total"></div></div>
+      <div class="rf-sub">Sign contracts to make the horde nastier. The board pays for the risk: each active contract adds to the
+        Aether cores and Blueprint value of every run played under it. Changes apply from your next shift.</div>
+      <div id="hz-list" class="hz-list"></div>
+    </div>
     <div id="foundry-groups" class="foundry-groups"></div>
   </div>
 </div>
@@ -173,6 +179,6 @@
   <div class="tree-hint">Drag to pan · Scroll to zoom · Click a node to buy</div>
 </div>
 
-<script type="module" src="src/main.js?v=202611041453"></script>
+<script type="module" src="src/main.js?v=202611041534"></script>
 </body>
 </html>

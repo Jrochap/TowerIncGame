@@ -516,6 +516,52 @@ export class World {
     return m;
   }
 
+  // Hazard tells: barrier bubble, nanite ring, volatile ember. Created lazily per pooled mesh.
+  setEnemyMarks(m, marks) {
+    const u = m.userData;
+    if (!marks.shield && !marks.regen && !marks.volatile && !u.marks) return;
+    if (!u.marks) {
+      const r = ENEMY_TYPES[u.pk.replace('_e', '')].radius;
+      if (!this.shieldMat) {
+        this.shieldMat = new THREE.MeshBasicMaterial({ color: COLORS.cyan.clone().multiplyScalar(0.6), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false });
+      }
+      const shield = new THREE.Mesh(this.geo.sphere, this.shieldMat); shield.scale.setScalar(r * 1.45);
+      const regen = new THREE.Mesh(this.geo.torus, MAT.green); regen.rotation.x = Math.PI / 2; regen.scale.setScalar(r * 1.05); regen.position.y = -r * 0.55;
+      const volatile = new THREE.Mesh(this.geo.sphere, MAT.amber); volatile.scale.setScalar(0.14 + r * 0.08); volatile.position.y = r + 0.35;
+      m.add(shield, regen, volatile);
+      u.marks = { shield, regen, volatile };
+    }
+    for (const k of ['shield', 'regen', 'volatile']) u.marks[k].visible = !!marks[k];
+  }
+
+  // ───────────────────────────── drones ─────────────────────────────
+  acquireDrone() {
+    this.dronePool = this.dronePool || [];
+    let m = this.dronePool.pop();
+    if (!m) {
+      m = new THREE.Group();
+      const body = new THREE.Mesh(this.geo.sphere, MAT.brass); body.scale.set(0.42, 0.22, 0.55); m.add(body);
+      const eye = new THREE.Mesh(this.geo.sphere, MAT.cyan); eye.scale.setScalar(0.13); eye.position.set(0, 0, 0.5); m.add(eye);
+      const rotor = new THREE.Mesh(this.geo.torus, MAT.cyan); rotor.rotation.x = Math.PI / 2; rotor.scale.setScalar(0.5); rotor.position.y = 0.22; m.add(rotor);
+      const mast = new THREE.Mesh(this.geo.box, MAT.dark); mast.scale.set(0.06, 0.2, 0.06); mast.position.y = 0.12; m.add(mast);
+      m.userData.rotor = rotor;
+    }
+    this.scene.add(m); this.activeDrones = this.activeDrones || new Set(); this.activeDrones.add(m);
+    return m;
+  }
+  releaseDrone(m) { this.scene.remove(m); this.activeDrones.delete(m); this.dronePool.push(m); }
+  placeDrone(m, x, y, z, target, ox, oz) {
+    m.position.set(x, y, z);
+    if (target) m.lookAt(target.x, target.y, target.z);
+    else m.rotation.set(0, Math.atan2(-oz, ox), 0); // tangent to the orbit
+    if (target && Math.random() < 0.5) this.sparks.emit(x, y, z, 0, 0, 0, COLORS.cyan, 0.25, 3);
+  }
+  droneImpact(x, y, z) {
+    const p = this._p.set(x, y, z);
+    this.burst(p, 14, COLORS.cyan, 7, 0.4, 8);
+    this.flash(p, 1.8, COLORS.cyan, 0.2);
+  }
+
   releaseEnemy(m) {
     this.scene.remove(m); this.activeEnemies.delete(m);
     this.enemyPools[m.userData.pk].push(m);
@@ -737,6 +783,7 @@ export class World {
       if (u.spin2) u.spin2.rotation.z -= gdt * 2;
       if (u.halo) u.halo.rotation.z += gdt * 2;
     }
+    if (this.activeDrones) for (const m of this.activeDrones) m.userData.rotor.rotation.z += gdt * 30;
     for (const b of this.activeBars) b.quaternion.copy(this.camera.quaternion);
 
     this.sparks.update(gdt);

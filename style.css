@@ -157,6 +157,7 @@ button.active { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 1
 .dmg.volt { color: #d8b4ff; text-shadow: 0 0 6px rgba(179,107,255,.9); }
 .dmg.ord { color: #8dffd0; text-shadow: 0 0 6px rgba(77,255,176,.8); }
 .dmg.laser { color: #ffd27a; font-size: 11px; }
+.dmg.drone { color: #9ff9ff; text-shadow: 0 0 6px rgba(125,249,255,.8); }
 .dmg.core { color: var(--cyan); font-size: 16px; text-shadow: 0 0 10px var(--cyan); }
 #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 4; box-shadow: inset 0 0 180px 30px rgba(255,20,60,.85); opacity: 0; }
 
@@ -257,7 +258,7 @@ button.foundry-btn:hover { box-shadow: 0 0 14px rgba(255,140,40,.45); }
 .rf-info .no { color: var(--dim); }
 button.danger-big { background: linear-gradient(180deg, #5a1e0c, #2a0c06); border-color: #ff8a3d; color: #ffd0a8; }
 button.danger-big:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
-.foundry-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.foundry-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; align-items: start; }
 .f-group { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .f-group h3 { margin: 0 0 4px; font-family: 'Orbitron'; font-size: 12px; letter-spacing: .22em; text-transform: uppercase; }
 button.f-node { text-transform: none; letter-spacing: 0; font-family: 'Share Tech Mono', monospace; font-weight: normal; text-align: left;
@@ -276,6 +277,22 @@ button.f-node { text-transform: none; letter-spacing: 0; font-family: 'Share Tec
 .f-node.pop { animation: fpop .35s ease-out; }
 @keyframes fpop { 0% { box-shadow: 0 0 0 0 rgba(255,184,107,.9); } 100% { box-shadow: 0 0 0 14px rgba(255,184,107,0); } }
 
+.hazards { padding: 14px 16px; border-color: rgba(255,90,60,.6); }
+.hz-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hz-title { color: #ff5a3c; font-size: 15px; }
+.hz-total { font-family: 'Orbitron'; font-size: 12px; color: #ff8a3d; }
+.hz-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+button.hz { text-transform: none; letter-spacing: 0; font-family: 'Share Tech Mono', monospace; font-weight: normal; text-align: left;
+  display: grid; grid-template-columns: 28px 1fr; gap: 2px 8px; padding: 8px 10px; border-color: #3b2d4f; opacity: .75; }
+button.hz:hover { opacity: 1; }
+.hz .hz-ico { grid-row: span 2; font-size: 20px; display: flex; align-items: center; justify-content: center; color: var(--dim); }
+.hz .hz-name { font-family: 'Orbitron'; font-weight: 700; font-size: 11px; display: flex; justify-content: space-between; gap: 6px; color: var(--ink); }
+.hz .hz-name b { color: var(--dim); }
+.hz .hz-desc { font-size: 11px; color: var(--dim); line-height: 1.3; }
+button.hz.on { opacity: 1; border-color: #ff5a3c; background: linear-gradient(180deg, #3a1410, #1c0a08); box-shadow: 0 0 12px rgba(255,90,60,.3); }
+.hz.on .hz-ico, .hz.on .hz-name b { color: #ff8a3d; }
+.hz.on .hz-desc { color: #e0b8a8; }
+
 /* ---------- small screens ---------- */
 @media (max-width: 760px) {
   .hud-left { width: auto; right: 12px; padding: 8px 10px; }
@@ -284,6 +301,6 @@ button.f-node { text-transform: none; letter-spacing: 0; font-family: 'Share Tec
   #boss-bar { top: 130px; width: 80vw; }
   .tree-top { flex-wrap: wrap; justify-content: center; white-space: normal; width: calc(100% - 24px); }
   .tree-legend, .tree-hint { display: none; }
-  .foundry-groups { grid-template-columns: 1fr; }
+  .foundry-groups, .hz-list { grid-template-columns: 1fr; }
   .reforge { flex-direction: column; align-items: stretch; }
 }

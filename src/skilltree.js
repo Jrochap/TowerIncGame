@@ -12,6 +12,7 @@ export const BRANCHES = {
   volt: { name: 'Voltaics',   color: '#b36bff', angle: 126 },
   ord:  { name: 'Ordnance',   color: '#4dffb0', angle: 198 },
   syn:  { name: 'Synergy',    color: '#f3ead0', angle: 0 },
+  drone: { name: 'Drone Bay',  color: '#7df9ff', angle: 234, gate: 'drones' },
 };
 
 const r1 = v => Math.round(v * 10) / 10;
@@ -26,7 +27,7 @@ const custom = (apply, eff) => ({ apply, eff });
 
 export const NODES = [];
 const N = (id, branch, d, lat, name, max, cost, req, effect, o = {}) =>
-  NODES.push({ id, branch, d, lat, name, max, cost, req, g: o.g ?? 1.45, icon: o.icon ?? '•', desc: o.desc, cap: !!o.cap, pos: o.pos, ...effect });
+  NODES.push({ id, branch, d, lat, name, max, cost, req, g: o.g ?? 1.45, icon: o.icon ?? '•', desc: o.desc, cap: !!o.cap, pos: o.pos, gate: o.gate, ...effect });
 
 N('core', 'core', 0, 0, 'Ignition Core', 1, 0, [], custom(() => {}, () => 'The heart of Tower Inc.'),
   { icon: '✺', desc: 'Every empire starts with a single spark. All branches grow from here.' });
@@ -152,6 +153,21 @@ N('syn_vo', 'syn', 0, 0, 'Arc Munitions', 10, 8, ['volt_range', 'ord_mcount'],
 N('syn_oo', 'syn', 0, 0, 'Integrated Fire Control', 10, 8, ['ord_mrate', 'off_multi'],
   mul('allRateMult', 0.03, 'rate of all weapons'), { icon: '⌖', pos: [234, 3.6] });
 
+// ── Drone Bay (gated: needs the Foundry's Drone Bay prototype) ──────────────────
+// Sits beyond the outer ring between Ordnance and Ballistics, rooted on Integrated Fire Control.
+const DG = { gate: 'drones' };
+N('drone_bay',   'drone', 0, 0, 'Drone Bay',          1,  60, ['syn_oo'], unlock('droneOn', 'Drone bay online (2 drones)'),
+  { ...DG, icon: '⌬', pos: [234, 8.4], desc: 'Brass rotor-drones orbit the tower and dive-bomb enemies anywhere on the field, splashing nearby targets.' });
+N('drone_dmg',   'drone', 0, 0, 'Shaped Warheads',    15, 20, ['drone_bay'], mul('droneDmgMult', 0.2, 'drone damage'), { ...DG, icon: '✸', g: 1.35, pos: [226, 9.3] });
+N('drone_rate',  'drone', 0, 0, 'Hot-Swap Batteries', 10, 25, ['drone_bay'], mul('droneRateMult', 0.08, 'drone dive rate'), { ...DG, icon: '⟳', g: 1.4, pos: [242, 9.3] });
+N('drone_count', 'drone', 0, 0, 'Hangar Expansion',   4,  80, ['drone_dmg', 'drone_rate'], add('droneCount', 1, 'drone(s)'), { ...DG, icon: '⁂', g: 2.2, pos: [234, 10.0] });
+N('drone_mark',  'drone', 0, 0, 'Target Painter',     10, 30, ['drone_dmg'], addPct('droneMark', 0.04, 'damage taken from all sources by drone-marked enemies (3s)'),
+  { ...DG, icon: '◎', g: 1.4, pos: [221, 10.3], desc: 'Every drone strike paints its target. Painted enemies take extra damage from everything.' });
+N('drone_salv',  'drone', 0, 0, 'Salvage Claws',      10, 25, ['drone_rate'], addPct('droneCogs', 0.1, 'cogs from painted enemies'), { ...DG, icon: '$', g: 1.4, pos: [247, 10.3] });
+N('drone_cap',   'drone', 0, 0, 'Swarm Directive',    1, 600, ['drone_count'],
+  custom(s => { s.droneDmgMult *= 3; s.droneCount += 2; s.droneSplash += 0.3; }, () => '×3 drone damage, +2 drones, stronger splash'),
+  { ...DG, icon: '✺', cap: true, pos: [234, 11.1], desc: 'Capstone. The hangar doors never close.' });
+
 // ── layout ────────────────────────────────────────────────────────────────────
 export const NODE_MAP = {};
 for (const n of NODES) {
@@ -172,12 +188,14 @@ for (const n of NODES) {
 // ── Overclock: maxed multi-level nodes keep levelling past their max at a much steeper price.
 // Overclock levels are stored as tree levels above n.max, so stats/respec handle them for free.
 // Excluded: one-off unlocks/capstones and nodes whose effect is a whole-number count.
-const NO_OC = new Set(['off_knock', 'volt_stun', 'volt_gale', 'off_proj', 'off_pierce', 'eco_blue', 'volt_chain', 'volt_twin', 'ord_mcount', 'ord_cluster', 'ord_lcount']);
+const NO_OC = new Set(['drone_count', 'off_knock', 'volt_stun', 'volt_gale', 'off_proj', 'off_pierce', 'eco_blue', 'volt_chain', 'volt_twin', 'ord_mcount', 'ord_cluster', 'ord_lcount']);
 for (const n of NODES) n.oc = n.max > 1 && !NO_OC.has(n.id);
 const OC_STEEP = 0.3; // extra growth per overclock level on top of the node's own curve
 
 // Foundry price modifiers (set by syncFoundry): global multiplier, capstone multiplier, free leading levels.
-const mods = { mult: 1, capMult: 1, free: 0 };
+const mods = { mult: 1, capMult: 1, free: 0, drones: false };
+// gated nodes (Foundry prototypes) are invisible and unbuyable until their gate is open
+export const nodeGated = n => !!n.gate && !mods[n.gate];
 export function setTreeMods(m) { Object.assign(mods, m); }
 
 export function nodeCost(n, lvl) {
@@ -189,7 +207,7 @@ export function nodeCost(n, lvl) {
 }
 export const ocLevel = (n, tree) => Math.max(0, (tree[n.id] || 0) - n.max);
 export const canOverclock = (n, tree) => n.oc && (tree[n.id] || 0) >= n.max;
-export const nodeAvailable = (n, tree) => n.req.length === 0 || n.req.some(id => (tree[id] || 0) > 0);
+export const nodeAvailable = (n, tree) => !nodeGated(n) && (n.req.length === 0 || n.req.some(id => (tree[id] || 0) > 0));
 
 export function nodeState(n, tree) {
   const lvl = tree[n.id] || 0;

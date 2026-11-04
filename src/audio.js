@@ -8,7 +8,7 @@ const MAX_VOICES = 36;
 // Minimum real-time gap (ms) between repeats of a sound, so 4× speed doesn't turn into noise.
 const GAPS = {
   shoot: 45, crit: 60, tesla: 70, launch: 80, explosion: 60, bomblet: 40, nova: 120,
-  laserLock: 150, die: 30, bigDie: 60, hit: 90, zap: 100, buy: 40, deny: 120, click: 30, core: 80,
+  laserLock: 150, die: 30, bigDie: 60, hit: 90, zap: 100, buy: 40, deny: 120, click: 30, core: 80, drone: 70,
 };
 
 class Sfx {
@@ -252,6 +252,10 @@ class Sfx {
         this.tone('sine', 65, 22, 2.0, 0.35);
         this.tone('sawtooth', 220, 30, 1.6, 0.05, 0.1);
         this.noise(1.6, 0.05, 'highpass', 3000, 1500, 1, 0.3, 0.2); // escaping steam
+        break;
+      case 'drone': // dive strike: chirp + small thud
+        this.tone('sine', r(1700, 2000), 700, 0.07, 0.03);
+        this.noise(0.12, 0.08, 'lowpass', 1600, 250);
         break;
       case 'click':
         this.tone('square', 1800, 1200, 0.025, 0.025);

@@ -48,6 +48,10 @@ export function computeStats(tree, shop = {}, foundry = {}) {
 
   f.laserDps = s.laserDps * s.laserDmgMult * s.allDmgMult * share;
 
+  f.droneDamage = s.droneDamage * s.droneDmgMult * s.allDmgMult * share;
+  f.droneRate = s.droneRate * s.droneRateMult * s.allRateMult;
+  f.droneCount = Math.min(8, s.droneCount);
+
   f.interest = Math.min(0.15, s.interest);
   f.shopDiscount = Math.min(0.6, s.shopDiscount);
   f.coreSiphon = Math.min(0.2, s.coreSiphon);

@@ -57,6 +57,13 @@ $('foundry-groups').addEventListener('click', e => {
   sfx.play('treeBuy'); writeSave(save); game.refreshMeta();
   ui.renderFoundry(save); ui.popFoundry(b.dataset.id);
 });
+$('hz-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-hz]');
+  if (!b) return;
+  const id = b.dataset.hz;
+  if (save.hazards[id]) delete save.hazards[id]; else save.hazards[id] = true;
+  writeSave(save); ui.renderFoundry(save);
+});
 $('btn-reforge').onclick = () => {
   const bp = blueprintsFor(save);
   if (bp <= 0) return;

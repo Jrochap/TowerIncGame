@@ -6,7 +6,7 @@ import {
 } from './config.js';
 import { computeStats } from './stats.js';
 import { writeSave } from './save.js';
-import { startWaveFor, blueprintsFor } from './foundry.js';
+import { startWaveFor, blueprintsFor, rawBlueprints, hazardBonus } from './foundry.js';
 import { COLORS } from './world.js';
 import { fmt } from './util.js';
 import { sfx } from './audio.js';
@@ -26,9 +26,9 @@ export class Game {
     this.world = world; this.ui = ui; this.save = save;
     this.state = 'menu';            // menu | playing | dying | dead
     this.speed = 1; this.paused = false;
-    this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = [];
+    this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = []; this.drones = [];
     this.sorted = [];
-    this.shop = {};
+    this.shop = {}; this.hz = {};
     this.onDeath = null;
     this.refreshMeta();
   }
@@ -65,6 +65,7 @@ export class Game {
       this.cogs += skippedCogs(sw - 1) * this.stats.cogMult;
     }
     this.startWave = Math.max(1, sw);
+    this.hz = this.save.reforges > 0 ? { ...this.save.hazards } : {};
     this.state = 'playing'; this.paused = false;
   }
 
@@ -85,6 +86,8 @@ export class Game {
     for (const p of this.projectiles) this.world.releaseProjectile(p.mesh);
     for (const m of this.missiles) this.world.releaseMissile(m.mesh);
     this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = []; this.sorted = [];
+    for (const d of this.drones) this.world.releaseDrone(d.mesh);
+    this.drones = [];
     this.world.hideBeams();
     this.laserActive = false;
     this.ui.hideBoss();
@@ -168,6 +171,7 @@ export class Game {
       this.updateEnemies(dt, false);
       this.updateProjectiles(dt);
       this.updateMissiles(dt);
+      this.updateDrones(dt);
       this.updateDelayed(dt);
       this.updateAutoBuy(dt);
       this.enemies = this.enemies.filter(e => !e.dead);
@@ -246,25 +250,29 @@ export class Game {
     for (let j = 0; j < s.n; j++) this.spawnEnemy(s.key, a + (j - (s.n - 1) / 2) * 0.05, j * 0.7);
   }
 
-  spawnEnemy(key, angle, extraR = 0) {
-    const def = ENEMY_TYPES[key], w = this.wave;
+  spawnEnemy(key, angle, extraR = 0, at = null) {
+    const def = ENEMY_TYPES[key], w = this.wave, hz = this.hz;
     const boss = key === 'boss';
-    const elite = !boss && w >= 6 && Math.random() < Math.min(0.2, (w - 5) * 0.007);
+    const elite = !at && !boss && w >= 6 && Math.random() < Math.min(0.2, (w - 5) * 0.007);
     const scale = elite ? 1.3 : 1;
-    const hp = def.hp * waveHpMult(w) * (elite ? 4 : 1);
+    const hp = at ? at.hp : def.hp * waveHpMult(w) * (elite ? 4 : 1);
     const r = SPAWN_RADIUS + Math.random() * 3 + extraR;
     const e = {
       key, def, boss, elite, scale,
       mesh: this.world.acquireEnemy(key, elite),
       x: Math.cos(angle) * r, z: Math.sin(angle) * r, y: def.y,
       hp, maxHp: hp,
-      speed: def.speed * (1 + Math.min(0.5, w * 0.006)) * (elite ? 0.9 : 1),
+      speed: def.speed * (1 + Math.min(0.5, w * 0.006)) * (elite ? 0.9 : 1) * (hz.swift ? 1.45 : 1),
       dmg: def.dmg * waveDmgMult(w) * (elite ? 2 : 1),
       radius: def.radius * scale,
       attacking: false, atkTimer: Math.random() * 0.5,
-      stunT: 0, stunImm: 0, shredT: 0, knockCd: 0, burnT: 0, burnDps: 0, kx: 0, kz: 0, flash: 0,
+      stunT: 0, stunImm: 0, shredT: 0, knockCd: 0, markT: 0, burnT: 0, burnDps: 0, kx: 0, kz: 0, flash: 0,
       wobble: Math.random() * 10, dead: false, d2: 0,
+      barrier: 0, hitT: -99, child: !!at,
     };
+    if (at) { e.x = at.x; e.z = at.z; }
+    if (hz.shield && (boss || Math.random() < 0.5)) e.barrier = hp * (boss ? 0.5 : 1);
+    this.world.setEnemyMarks(e.mesh, { shield: e.barrier > 0, regen: !!hz.regen, volatile: !!hz.volatile });
     if (def.bar || elite) {
       e.bar = this.world.acquireBar(boss ? 5 : 1.4 * scale * (def.radius / 0.75), elite || boss);
       e.barH = def.y * scale + e.radius + 0.7;
@@ -321,7 +329,9 @@ export class Game {
   die() {
     if (this.state !== 'playing') return;
     this.state = 'dying'; this.dyingT = 2.4; this.hp = 0;
-    const earned = Math.floor(coresForRun(this.wave, this.kills, this.bossKills) * this.stats.coreMult);
+    const hzB = hazardBonus(this.hz);
+    const earned = Math.floor(coresForRun(this.wave, this.kills, this.bossKills) * this.stats.coreMult * (1 + hzB));
+    this.save.cycleBp = Math.max(this.save.cycleBp || 0, rawBlueprints(this.wave, this.hz));
     const prevBest = this.save.bestWave;
     this.save.cores += earned;
     this.save.totalCores += earned + this.siphoned;
@@ -329,7 +339,7 @@ export class Game {
     this.save.runs++;
     this.save.totalKills += this.kills;
     writeSave(this.save);
-    this.deathInfo = { reforgeBp: blueprintsFor(this.save), wave: this.wave, kills: this.kills, bosses: this.bossKills, earned, siphoned: this.siphoned, newBest: this.wave > prevBest, time: this.time };
+    this.deathInfo = { hazardBonus: hzB, reforgeBp: blueprintsFor(this.save), wave: this.wave, kills: this.kills, bosses: this.bossKills, earned, siphoned: this.siphoned, newBest: this.wave > prevBest, time: this.time };
     this.world.towerDestroyed();
     sfx.play('destroyed');
     this.laserActive = false;
@@ -535,6 +545,81 @@ export class Game {
     });
   }
 
+  // ───────────────────────────── drone bay ─────────────────────────────
+  // Each drone orbits the tower until something is in range, then dives, strikes (splash + paint) and
+  // hovers above the strike point while it recharges, diving again from there. It only flies home to
+  // its orbit slot when nothing is left in range, so dive rate (not flight time) sets its damage.
+  updateDrones(dt) {
+    const s = this.stats, W = this.world;
+    const want = s.droneOn ? s.droneCount : 0;
+    while (this.drones.length < want) {
+      const i = this.drones.length;
+      this.drones.push({ mesh: W.acquireDrone(), state: 'orbit', cd: 0.5 + i * 0.3, x: 0, y: 8, z: 0, target: null });
+    }
+    while (this.drones.length > want) W.releaseDrone(this.drones.pop().mesh);
+    const n = this.drones.length;
+    for (let i = 0; i < n; i++) {
+      const d = this.drones[i];
+      const a = this.time * 0.9 + i / n * Math.PI * 2;
+      const ox = Math.cos(a) * 6.5, oz = Math.sin(a) * 6.5, oy = 8 + Math.sin(this.time * 2.3 + i) * 0.35;
+      if (d.state === 'orbit') {
+        d.x += (ox - d.x) * Math.min(1, dt * 6); d.y += (oy - d.y) * Math.min(1, dt * 6); d.z += (oz - d.z) * Math.min(1, dt * 6);
+        d.cd -= dt;
+        if (d.cd <= 0) {
+          const t = this.pickDroneTarget(s.droneRange);
+          if (t) { d.target = t; d.state = 'dive'; } else d.cd = 0.2;
+        }
+      } else if (d.state === 'dive') {
+        let t = d.target;
+        if (!t || t.dead) { t = d.target = this.findNearest(d.x, d.z, 12); if (!t) { d.state = 'return'; continue; } }
+        const tx = t.x - d.x, ty = t.y - d.y, tz = t.z - d.z, dist = Math.hypot(tx, ty, tz) || 1;
+        const step = 50 * dt;
+        if (dist <= step + t.radius * 0.6) {
+          this.droneStrike(t);
+          d.state = 'hover'; d.target = null; d.cd = 1 / s.droneRate; d.hy = t.y + 3.5;
+        } else { d.x += tx / dist * step; d.y += ty / dist * step; d.z += tz / dist * step; }
+      } else if (d.state === 'hover') {
+        d.y += (d.hy - d.y) * Math.min(1, dt * 5);
+        d.cd -= dt;
+        if (d.cd <= 0) {
+          const t = this.pickDroneTarget(s.droneRange);
+          if (t) { d.target = t; d.state = 'dive'; } else d.state = 'return';
+        }
+      } else { // return
+        const tx = ox - d.x, ty = oy - d.y, tz = oz - d.z, dist = Math.hypot(tx, ty, tz);
+        const step = 32 * dt;
+        if (dist <= step) d.state = 'orbit';
+        else { d.x += tx / dist * step; d.y += ty / dist * step; d.z += tz / dist * step; }
+      }
+      W.placeDrone(d.mesh, d.x, d.y, d.z, d.state === 'dive' && d.target ? d.target : null, ox, oz);
+    }
+  }
+
+  // Random pick among the 10 healthiest enemies in range, so drones spread out and favour tough targets.
+  pickDroneTarget(range) {
+    const r2 = range * range, pool = [];
+    for (const e of this.sorted) { if (e.d2 > r2) break; if (!e.dead) pool.push(e); }
+    if (!pool.length) return null;
+    pool.sort((a, b) => b.hp - a.hp);
+    return pool[Math.floor(Math.random() * Math.min(10, pool.length))];
+  }
+
+  droneStrike(t) {
+    const s = this.stats;
+    const x = t.x, y = t.y, z = t.z;
+    this.world.droneImpact(x, y, z);
+    sfx.play('drone');
+    t.markT = 3;
+    this.damageEnemy(t, s.droneDamage, { kind: 'drone' });
+    if (s.droneSplash > 0) {
+      for (const e of this.enemies) {
+        if (e.dead || e === t) continue;
+        const dx = e.x - x, dz = e.z - z;
+        if (dx * dx + dz * dz < 5) { e.markT = Math.max(e.markT, 1.5); this.damageEnemy(e, s.droneDamage * s.droneSplash, { kind: 'drone', silent: true }); }
+      }
+    }
+  }
+
   updateMissiles(dt) {
     const s = this.stats;
     for (const m of this.missiles) {
@@ -601,7 +686,17 @@ export class Game {
     const s = this.stats;
     let d = amount;
     if (e.shredT > 0) d *= 1 + s.teslaShred;
+    if (e.markT > 0) d *= 1 + s.droneMark;
     if (e.boss || e.elite) d *= s.bossDmg;
+    const hz = this.hz;
+    if (hz.plated) d = Math.max(d * 0.15, d - e.maxHp * (e.boss ? 0.003 : 0.015));
+    e.hitT = this.time;
+    if (e.barrier > 0) {
+      const a = Math.min(e.barrier, d);
+      e.barrier -= a; d -= a;
+      if (e.barrier <= 0) this.world.setEnemyMarks(e.mesh, { shield: false, regen: !!hz.regen, volatile: !!hz.volatile });
+      if (d <= 0) { e.flash = 1; return a; }
+    }
     e.hp -= d;
     e.flash = 1;
     if (s.lifesteal > 0 && this.state === 'playing') this.hp = Math.min(s.maxHp, this.hp + Math.min(d * s.lifesteal, s.maxHp * 0.02));
@@ -615,10 +710,14 @@ export class Game {
     e.dead = true;
     if (this.state !== 'playing') { this.world.enemyDeath(e); this.releaseEnemy(e); return; }
     const s = this.stats;
+    if (e.child) { // Mitosis splits: no bounty, no kill credit
+      sfx.play('die'); this.world.enemyDeath(e); this.releaseEnemy(e); return;
+    }
     this.kills++;
     let c = e.def.cogs * waveCogMult(this.wave) * s.cogMult;
     if (e.elite) c *= 4;
     if (e.elite || e.boss) c *= 1 + s.bossBounty;
+    if (e.markT > 0) c *= 1 + s.droneCogs;
     this.cogs += c;
     if (e.boss) {
       this.bossKills++;
@@ -634,6 +733,17 @@ export class Game {
     sfx.play(e.boss ? 'bossDie' : e.elite || e.key === 'juggernaut' ? 'bigDie' : 'die');
     this.world.enemyDeath(e);
     this.releaseEnemy(e);
+    const hz = this.hz;
+    if (hz.split && !e.boss && !e.child && e.key !== 'swarm') {
+      for (let i = 0; i < 2; i++) {
+        const a = Math.random() * Math.PI * 2;
+        this.spawnEnemy('swarm', 0, 0, { x: e.x + Math.cos(a) * 0.6, z: e.z + Math.sin(a) * 0.6, hp: e.maxHp * 0.35 });
+      }
+    }
+    if (hz.volatile && Math.hypot(e.x, e.z) < 8 + TOWER_RADIUS) {
+      this.world.flash(_v.set(e.x, e.y, e.z), 2.2 + e.radius, COLORS.amber, 0.25);
+      this.damageTower(e.dmg * 0.6 * (1 + this.siege), null);
+    }
   }
 
   enemyAttack(e) {
@@ -655,6 +765,8 @@ export class Game {
       if (e.stunT > 0) e.stunT -= dt;
       if (e.shredT > 0) e.shredT -= dt;
       if (e.knockCd > 0) e.knockCd -= dt;
+      if (e.markT > 0) e.markT -= dt;
+      if (this.hz.regen && e.hp < e.maxHp && this.time - e.hitT > 1) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt);
       if (e.stunImm > 0) e.stunImm -= dt;
       if (e.burnT > 0) {
         e.burnT -= dt;

@@ -25,6 +25,9 @@ export const BASE_STATS = {
   missileRadius: 3.2, missileRadiusMult: 1, missileCount: 1, missileBurn: 0, missileCluster: 0,
   // prism laser
   laserOn: 0, laserDps: 22, laserDmgMult: 1, laserCount: 1, laserRamp: 0,
+  // drone bay (Foundry prototype)
+  droneOn: 0, droneCount: 2, droneDamage: 55, droneDmgMult: 1, droneRate: 0.6, droneRateMult: 1,
+  droneRange: 30, droneSplash: 0.5, droneMark: 0, droneCogs: 0,
   // global
   allDmgMult: 1, allRateMult: 1,
   // economy
@@ -76,6 +79,8 @@ export const SHOP = [
   { id: 'missiler', tab: 'tech', name: 'Pod Reload',  base: 25, g: 1.22, max: 25, req: 'missileOn', lockText: 'Skill Matrix: Rocket Pods', desc: '+4% missile rate', apply: (s, l) => { s.missileRateMult *= 1 + 0.04 * l; } },
   { id: 'laser',  tab: 'tech', name: 'Lens Polish',   base: 25, g: 1.17, req: 'laserOn',   lockText: 'Skill Matrix: Prism Laser',  desc: '+12% laser damage',   apply: (s, l) => { s.laserDmgMult *= 1 + 0.12 * l; } },
   { id: 'nova',   tab: 'tech', name: 'Nova Pressure', base: 25, g: 1.17, req: 'novaOn',    lockText: 'Skill Matrix: Pressure Nova', desc: '+12% nova damage',   apply: (s, l) => { s.novaDmgMult *= 1 + 0.12 * l; } },
+  { id: 'drone',  tab: 'tech', name: 'Drone Payloads', base: 25, g: 1.17, req: 'droneOn', lockText: 'Foundry: Drone Bay', desc: '+12% drone damage', apply: (s, l) => { s.droneDmgMult *= 1 + 0.12 * l; } },
+  { id: 'droner', tab: 'tech', name: 'Rotor Tuning',   base: 30, g: 1.22, max: 25, req: 'droneOn', lockText: 'Foundry: Drone Bay', desc: '+4% drone dive rate', apply: (s, l) => { s.droneRateMult *= 1 + 0.04 * l; } },
 
   { id: 'cogs',   tab: 'util', name: 'Salvage Yield', base: 15, g: 1.2,  max: 40, desc: '+6% cog income',          apply: (s, l) => { s.cogMult *= 1 + 0.06 * l; } },
   { id: 'interest', tab: 'util', name: 'Vault Interest', base: 30, g: 1.3, max: 10, desc: '+0.5% interest on banked cogs each wave', apply: (s, l) => { s.interest += 0.005 * l; } },
