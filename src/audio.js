@@ -3,7 +3,7 @@
 // until then, and while muted, every call is a cheap no-op.
 
 const MUTE_KEY = 'towerinc.muted';
-const MAX_VOICES = 28;
+const MAX_VOICES = 36;
 
 // Minimum real-time gap (ms) between repeats of a sound, so 4× speed doesn't turn into noise.
 const GAPS = {
@@ -29,10 +29,15 @@ class Sfx {
       this.master.gain.value = this.muted ? 0 : this.volume;
       const comp = c.createDynamicsCompressor();
       comp.threshold.value = -14; comp.ratio.value = 6;
+      comp.attack.value = 0.008; // let explosion transients punch through before clamping
       this.master.connect(comp).connect(c.destination);
       this.noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate);
       const d = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      // soft-clip curve: saturates low sines into harmonics so booms read on laptop speakers too
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < curve.length; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(x * 3.2); }
+      this.shaperCurve = curve;
       this.buildLaserHum();
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -83,6 +88,17 @@ class Sfx {
     if (f1 !== f0) bq.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
     src.connect(bq).connect(this.env(vol, dur, at, attack));
     this.voice(src, { at, dur });
+  }
+
+  // Kick-drum style thump: fast pitch dive from f0 to f1, run through a soft clipper.
+  boom(f0, f1, dur, vol, at = 0) {
+    const c = this.ctx, t = c.currentTime + at, o = c.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + Math.min(0.18, dur * 0.4));
+    const sh = c.createWaveShaper(); sh.curve = this.shaperCurve;
+    o.connect(sh).connect(this.env(vol, dur, at, 0.002));
+    this.voice(o, { at, dur });
   }
 
   // Continuous buzzing hum for the prism laser; faded in/out by setLaser().
@@ -172,7 +188,8 @@ class Sfx {
         this.noise(0.22, 0.1, 'lowpass', 1800, 200);
         break;
       case 'nova':
-        this.tone('sine', 220, 40, 0.6, 0.3);
+        this.boom(130, 32, 0.7, 0.3);
+        this.tone('sine', 220, 40, 0.6, 0.22);
         this.noise(0.55, 0.13, 'lowpass', 700, 100);
         this.noise(0.3, 0.05, 'highpass', 5000, 5000, 1, 0, 0.05);
         break;
@@ -181,12 +198,17 @@ class Sfx {
         this.noise(0.07, 0.04, 'bandpass', r(1200, 2000), 600, 2);
         break;
       case 'bigDie':
-        this.noise(0.35, 0.15, 'lowpass', 1100, 120);
+        this.boom(r(140, 160), 40, 0.4, 0.28);
+        this.noise(0.45, 0.2, 'lowpass', 1800, 90, 1.2);
         this.tone('square', 160, 50, 0.25, 0.05);
         break;
       case 'bossDie':
-        this.noise(1.6, 0.3, 'lowpass', 2000, 50, 1, 0, 0.01);
-        this.tone('sine', 70, 25, 1.4, 0.35);
+        this.noise(0.08, 0.22, 'bandpass', 3000, 1400, 1.2);
+        this.boom(120, 28, 1.2, 0.5);
+        this.boom(90, 30, 0.9, 0.35, 0.35);                                   // secondary blast
+        this.noise(1.6, 0.32, 'lowpass', 2600, 45, 1.4, 0, 0.005);
+        this.noise(0.9, 0.22, 'lowpass', 1800, 60, 1.2, 0.35, 0.005);
+        this.tone('sine', 70, 25, 1.4, 0.3);
         [392, 494, 587, 784].forEach((f, i) => this.tone('triangle', f, f, 0.5, 0.06, 0.25 + i * 0.12));
         break;
       case 'hit': // metallic clank on the hull
@@ -225,8 +247,9 @@ class Sfx {
         this.noise(0.7, 0.15, 'lowpass', 900, 100, 1, 0.2);
         break;
       case 'destroyed':
-        this.noise(2.4, 0.35, 'lowpass', 2500, 40, 1, 0, 0.01);
-        this.tone('sine', 65, 22, 2.0, 0.4);
+        this.boom(110, 24, 1.8, 0.55);
+        this.noise(2.4, 0.38, 'lowpass', 2800, 40, 1.4, 0, 0.005);
+        this.tone('sine', 65, 22, 2.0, 0.35);
         this.tone('sawtooth', 220, 30, 1.6, 0.05, 0.1);
         this.noise(1.6, 0.05, 'highpass', 3000, 1500, 1, 0.3, 0.2); // escaping steam
         break;

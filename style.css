@@ -235,6 +235,8 @@ h1 .t2 { color: var(--mag); margin-left: .2em; text-shadow: 0 0 18px var(--mag),
 .tt-status.no { color: #ff8fa3; }
 .tt-status.max { color: var(--green); }
 .tt-status.lock { color: var(--dim); font-family: 'Share Tech Mono'; }
+.tt-status.oc { color: #fff2c0; text-shadow: 0 0 8px #ffd76a88; }
+.tt-oc { color: #fff2c0; }
 
 /* ---------- small screens ---------- */
 @media (max-width: 760px) {

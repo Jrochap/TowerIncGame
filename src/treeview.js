@@ -1,5 +1,8 @@
 // Tower Inc. — interactive Skill Matrix rendered on a 2D canvas (pan, zoom, hover, buy).
-import { NODES, NODE_MAP, BRANCHES, SPACING, nodeCost, nodeState } from './skilltree.js';
+import { NODES, NODE_MAP, BRANCHES, SPACING, nodeCost, nodeState, ocLevel, canOverclock } from './skilltree.js';
+
+// effect text at fractional-free but large levels can produce float noise (e.g. 8.800000001)
+const tidy = t => t.replace(/\d+\.\d{3,}/g, m => String(Math.round(+m * 10) / 10));
 import { fmt } from './util.js';
 
 const TAU = Math.PI * 2;
@@ -97,14 +100,18 @@ export class TreeView {
   renderTip(n) {
     const save = this.opts.getSave();
     const lvl = save.tree[n.id] || 0, b = BRANCHES[n.branch], st = nodeState(n, save.tree);
+    const oc = ocLevel(n, save.tree), canOc = canOverclock(n, save.tree);
     let h = `<div class="tt-name" style="color:${b.color}">${n.name}</div>`;
-    h += `<div class="tt-sub">${b.name}${n.cap ? ' · Capstone' : ''} · Lv ${lvl}/${n.max}</div>`;
+    h += `<div class="tt-sub">${b.name}${n.cap ? ' · Capstone' : ''} · Lv ${Math.min(lvl, n.max)}/${n.max}${oc ? ` · <span class="tt-oc">Overclock +${oc}</span>` : ''}</div>`;
     if (n.desc) h += `<div class="tt-desc">${n.desc}</div>`;
     if (n.id !== 'core') {
-      if (lvl > 0) h += `<div class="tt-eff"><span>Current</span>${n.eff(lvl)}</div>`;
-      if (lvl < n.max) h += `<div class="tt-eff next"><span>${lvl ? 'Next' : 'Grants'}</span>${n.eff(lvl + 1)}</div>`;
+      if (lvl > 0) h += `<div class="tt-eff"><span>Current</span>${tidy(n.eff(lvl))}</div>`;
+      if (lvl < n.max || canOc) h += `<div class="tt-eff next"><span>${lvl >= n.max ? 'Overclock' : lvl ? 'Next' : 'Grants'}</span>${tidy(n.eff(lvl + 1))}</div>`;
     }
-    if (st === 'max') h += `<div class="tt-status max">${n.id === 'core' ? 'ONLINE' : 'MAXED'}</div>`;
+    if (canOc) {
+      const cost = nodeCost(n, lvl), ok = save.cores >= cost;
+      h += `<div class="tt-status ${ok ? 'oc' : 'no'}">◈ ${fmt(cost)} — ${ok ? 'click to overclock' : 'insufficient cores'}</div>`;
+    } else if (st === 'max') h += `<div class="tt-status max">${n.id === 'core' ? 'ONLINE' : 'MAXED'}</div>`;
     else if (st === 'locked') h += `<div class="tt-status lock">Requires: ${n.req.map(id => NODE_MAP[id].name).join(' or ')}</div>`;
     else {
       const cost = nodeCost(n, lvl), ok = save.cores >= cost;
@@ -192,6 +199,7 @@ export class TreeView {
   drawNode(g, n, save) {
     const lvl = save.tree[n.id] || 0, col = BRANCHES[n.branch].color, st = nodeState(n, save.tree), r = n.size;
     const afford = (st === 'avail' || st === 'owned') && save.cores >= nodeCost(n, lvl);
+    const oc = ocLevel(n, save.tree), ocAfford = canOverclock(n, save.tree) && save.cores >= nodeCost(n, lvl);
     g.save(); g.translate(n.x, n.y);
 
     hexPath(g, r);
@@ -199,6 +207,14 @@ export class TreeView {
       g.shadowColor = col; g.shadowBlur = 22; g.fillStyle = col; g.fill(); g.shadowBlur = 0;
       g.fillStyle = 'rgba(10,6,18,0.55)'; hexPath(g, r * 0.8); g.fill();
       hexPath(g, r); g.strokeStyle = '#fff6'; g.lineWidth = 1.5; g.stroke();
+      if (oc > 0 || ocAfford) { // overclock ring: rotating dashes, pulsing while one is affordable
+        g.save(); g.rotate(this.t * 0.8);
+        g.beginPath(); g.arc(0, 0, r + 8, 0, TAU);
+        g.setLineDash([5, 6]); g.strokeStyle = '#fff2c0';
+        g.globalAlpha = ocAfford ? 0.55 + 0.45 * Math.sin(this.t * 4) : 0.35; g.lineWidth = 2;
+        if (ocAfford) { g.shadowColor = '#fff2c0'; g.shadowBlur = 12; }
+        g.stroke(); g.restore();
+      }
     } else if (st === 'owned') {
       g.fillStyle = '#1c1428'; g.fill(); g.strokeStyle = col; g.lineWidth = 3; g.stroke();
       g.beginPath(); g.arc(0, 0, r + 7, -Math.PI / 2, -Math.PI / 2 + TAU * lvl / n.max);
@@ -225,7 +241,7 @@ export class TreeView {
     if (n.id !== 'core') {
       g.font = '12px "Share Tech Mono", monospace';
       g.fillStyle = st === 'locked' ? '#5a5468' : st === 'max' ? col : '#e8e2c8';
-      g.fillText(st === 'max' && n.max === 1 ? 'ONLINE' : `${lvl}/${n.max}`, 0, r + (n.cap ? 22 : 17));
+      g.fillText(st === 'max' && n.max === 1 ? 'ONLINE' : `${Math.min(lvl, n.max)}/${n.max}${oc ? ` +${oc}` : ''}`, 0, r + (n.cap ? 22 : 17));
     }
     g.restore();
   }

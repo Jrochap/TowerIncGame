@@ -169,7 +169,18 @@ for (const n of NODES) {
   n.size = n.id === 'core' ? 34 : n.cap ? 32 : n.max === 1 ? 28 : 24;
 }
 
-export const nodeCost = (n, lvl) => Math.ceil(n.cost * Math.pow(n.g, lvl));
+// ── Overclock: maxed multi-level nodes keep levelling past their max at a much steeper price.
+// Overclock levels are stored as tree levels above n.max, so stats/respec handle them for free.
+// Excluded: one-off unlocks/capstones and nodes whose effect is a whole-number count.
+const NO_OC = new Set(['off_proj', 'off_pierce', 'eco_blue', 'volt_chain', 'volt_twin', 'ord_mcount', 'ord_cluster', 'ord_lcount']);
+for (const n of NODES) n.oc = n.max > 1 && !NO_OC.has(n.id);
+const OC_STEEP = 0.3; // extra growth per overclock level on top of the node's own curve
+
+export const nodeCost = (n, lvl) => lvl < n.max
+  ? Math.ceil(n.cost * Math.pow(n.g, lvl))
+  : Math.ceil(n.cost * Math.pow(n.g, n.max) * Math.pow(n.g + OC_STEEP, lvl - n.max));
+export const ocLevel = (n, tree) => Math.max(0, (tree[n.id] || 0) - n.max);
+export const canOverclock = (n, tree) => n.oc && (tree[n.id] || 0) >= n.max;
 export const nodeAvailable = (n, tree) => n.req.length === 0 || n.req.some(id => (tree[id] || 0) > 0);
 
 export function nodeState(n, tree) {
@@ -183,7 +194,7 @@ export function buyNode(save, id) {
   const n = NODE_MAP[id];
   if (!n) return false;
   const lvl = save.tree[id] || 0;
-  if (lvl >= n.max || !nodeAvailable(n, save.tree)) return false;
+  if ((lvl >= n.max && !n.oc) || !nodeAvailable(n, save.tree)) return false;
   const cost = nodeCost(n, lvl);
   if (save.cores < cost) return false;
   save.cores -= cost;

@@ -42,6 +42,10 @@ Each branch ends in a 400-core capstone. Commerce also holds the **Clockwork Cle
 Workshop upgrades. It can buy only the rows you mark AUTO (cheapest first) or anything it can
 afford (random, weighted toward cheaper upgrades). Each level makes it faster.
 
+Once a node is maxed you can keep buying **Overclock** levels past its cap at a much steeper price.
+One-off unlocks, capstones, and nodes that add whole counts (projectiles, pierce, missiles, beams)
+can't be overclocked. Respec refunds overclocks too.
+
 ### Controls
 `Space` pause · `1/2/3` 1×/2×/4× speed · `M` mute · `Esc` menu (self-destruct to bank cores) · drag to orbit · scroll to zoom
 
@@ -57,5 +61,11 @@ afford (random, weighted toward cheaper upgrades). Each level makes it faster.
 | `src/ui.js` | HUD, Workshop, floating numbers, end screens |
 | `src/treeview.js` | canvas renderer for the Skill Matrix |
 | `src/main.js` | bootstrap, screen flow, input, main loop |
+| `tools/bump-version.sh` | stamps `?v=` on every script/stylesheet URL in `index.html` |
+
+### Releasing
+Run `sh tools/bump-version.sh` before committing changes you'll push. It updates the import map in
+`index.html` so browsers fetch the new copy of every module together. Without it, a cached old
+module can end up mixed with a new one and the game won't start.
 
 Progress is saved in `localStorage`.
