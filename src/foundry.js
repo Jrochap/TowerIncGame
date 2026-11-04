@@ -1,6 +1,7 @@
 // Tower Inc. — the Foundry: prestige layer. Reforging wipes cores, the Skill Matrix and the best
 // wave in exchange for Blueprints, which buy permanent upgrades here.
 import { NODES, setTreeMods, nodeGated } from './skilltree.js';
+import { challengeBpMult } from './challenges.js';
 
 export const FOUNDRY_GROUPS = [
   { id: 'prog', name: 'Acceleration', color: '#ffc94d' },
@@ -87,7 +88,7 @@ export const BP_MIN_WAVE = 41;
 export const rawBlueprints = (wave, hz) => wave < BP_MIN_WAVE ? 0 : Math.pow(wave - 40, 1.5) / 13 * (1 + hazardBonus(hz));
 export function blueprintsFor(save) {
   const raw = Math.max(save.cycleBp || 0, rawBlueprints(save.bestWave, {}));
-  return Math.floor(raw * foundryMeta(save.foundry).bpMult);
+  return Math.floor(raw * foundryMeta(save.foundry).bpMult * challengeBpMult(save.challenges));
 }
 
 // Wave a run starts at: Express Elevator level, capped at half the best wave since Reforging (rounded down to 10s).

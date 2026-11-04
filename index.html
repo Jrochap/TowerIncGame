@@ -7,24 +7,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=202611041614">
+<link rel="stylesheet" href="style.css?v=202611041626">
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-    "./src/audio.js": "./src/audio.js?v=202611041614",
-    "./src/config.js": "./src/config.js?v=202611041614",
-    "./src/foundry.js": "./src/foundry.js?v=202611041614",
-    "./src/game.js": "./src/game.js?v=202611041614",
-    "./src/main.js": "./src/main.js?v=202611041614",
-    "./src/save.js": "./src/save.js?v=202611041614",
-    "./src/skilltree.js": "./src/skilltree.js?v=202611041614",
-    "./src/stats.js": "./src/stats.js?v=202611041614",
-    "./src/treeview.js": "./src/treeview.js?v=202611041614",
-    "./src/ui.js": "./src/ui.js?v=202611041614",
-    "./src/util.js": "./src/util.js?v=202611041614",
-    "./src/world.js": "./src/world.js?v=202611041614"
+    "./src/audio.js": "./src/audio.js?v=202611041626",
+    "./src/challenges.js": "./src/challenges.js?v=202611041626",
+    "./src/config.js": "./src/config.js?v=202611041626",
+    "./src/foundry.js": "./src/foundry.js?v=202611041626",
+    "./src/game.js": "./src/game.js?v=202611041626",
+    "./src/main.js": "./src/main.js?v=202611041626",
+    "./src/save.js": "./src/save.js?v=202611041626",
+    "./src/skilltree.js": "./src/skilltree.js?v=202611041626",
+    "./src/stats.js": "./src/stats.js?v=202611041626",
+    "./src/treeview.js": "./src/treeview.js?v=202611041626",
+    "./src/ui.js": "./src/ui.js?v=202611041626",
+    "./src/util.js": "./src/util.js?v=202611041626",
+    "./src/world.js": "./src/world.js?v=202611041626"
   }
 }
 </script>
@@ -40,6 +41,7 @@
 <div id="hud" class="hidden">
   <div class="hud-left panel">
     <div class="wave-box"><span class="label">WAVE</span><span id="wave-num">1</span></div>
+    <div id="chal-tag" class="chal-tag hidden"></div>
     <div class="bars">
       <div class="bar hp"><div id="hp-fill" class="fill"></div><span id="hp-text"></span></div>
       <div class="bar shield hidden" id="shield-bar"><div id="shield-fill" class="fill"></div><span id="shield-text"></span></div>
@@ -160,6 +162,12 @@
         Aether cores and Blueprint value of every run played under it. Changes apply from your next shift.</div>
       <div id="hz-list" class="hz-list"></div>
     </div>
+    <div id="challenges" class="challenges panel hidden">
+      <div class="rf-title ch-title">CHALLENGES</div>
+      <div class="rf-sub">Restricted shifts with three wave targets each. Every tier you clear grants a permanent reward that
+        survives Reforges. Challenge shifts start at wave 1, ignore hazard contracts and don't count toward your best wave.</div>
+      <div id="ch-list" class="ch-list"></div>
+    </div>
     <div id="foundry-groups" class="foundry-groups"></div>
   </div>
 </div>
@@ -184,6 +192,6 @@
   <div class="tree-hint">Drag to pan · Scroll to zoom · Click a node to buy</div>
 </div>
 
-<script type="module" src="src/main.js?v=202611041614"></script>
+<script type="module" src="src/main.js?v=202611041626"></script>
 </body>
 </html>

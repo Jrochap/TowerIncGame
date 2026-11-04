@@ -1,7 +1,8 @@
 // Tower Inc. — DOM HUD: bars, resources, workshop, floating numbers, banners, end screens.
-import { SHOP } from './config.js';
+import { SHOP, shopLock } from './config.js';
 import { NODES, nodeGated } from './skilltree.js';
 import { fmt } from './util.js';
+import { CHALLENGES, challengesUnlocked } from './challenges.js';
 import { FOUNDRY, FOUNDRY_GROUPS, foundryCost, blueprintsFor, startWaveFor, BP_MIN_WAVE, HAZARDS, hazardBonus, hazardsUnlocked } from './foundry.js';
 
 const $ = id => document.getElementById(id);
@@ -63,10 +64,11 @@ export class UI {
     for (const it of this.items) {
       const { u, b } = it;
       const lvl = game.shop[u.id] || 0, max = u.max ?? Infinity;
-      it.auto.classList.toggle('hidden', !showAuto || !!(u.req && !s[u.req]));
+      const lock = shopLock(u, s);
+      it.auto.classList.toggle('hidden', !showAuto || !!lock);
       it.auto.classList.toggle('on', !!ab.sel[u.id]);
-      if (u.req && !s[u.req]) {
-        b.className = 'upg locked'; it.lvl.textContent = ''; it.cost.textContent = '🔒 ' + u.lockText;
+      if (lock) {
+        b.className = 'upg locked'; it.lvl.textContent = ''; it.cost.textContent = '🔒 ' + lock;
         continue;
       }
       it.lvl.textContent = max === Infinity ? `Lv ${lvl}` : `Lv ${lvl}/${max}`;
@@ -167,6 +169,13 @@ export class UI {
 
     const s = game.stats;
     this.waveNum.textContent = game.wave;
+    const ch = game.challenge, tag = $('chal-tag');
+    tag.classList.toggle('hidden', !ch);
+    if (ch) {
+      const next = ch.tiers[game.chTier];
+      const txt = `${ch.icon}︎ ${ch.name} · ${'★'.repeat(game.chTier)}${'☆'.repeat(ch.tiers.length - game.chTier)}${next ? ` · next: survive wave ${next}` : ' · complete'}`;
+      if (tag.textContent !== txt) tag.textContent = txt;
+    }
     const hpf = Math.max(0, game.hp / s.maxHp);
     this.hpFill.style.width = (hpf * 100) + '%';
     this.hpText.textContent = `${fmt(Math.max(0, game.hp))} / ${fmt(s.maxHp)}`;
@@ -215,6 +224,20 @@ export class UI {
       ? `Best wave this cycle <b>${save.bestWave}</b> → Reforge now for <b>+${fmt(bp)} ✎</b>`
       : `<span class="no">Reach wave ${BP_MIN_WAVE} or deeper to earn Blueprints (best this cycle: ${save.bestWave}).</span>`;
     $('btn-reforge').disabled = bp <= 0;
+    const chOn = challengesUnlocked(save);
+    $('challenges').classList.toggle('hidden', !chOn);
+    if (chOn) {
+      $('ch-list').innerHTML = CHALLENGES.map(c => {
+        const t = save.challenges[c.id] || 0;
+        const stars = c.tiers.map((w, i) => `<span class="${i < t ? 'on' : ''}" title="Survive wave ${w}">★<i>${w}</i></span>`).join('');
+        return `<div class="ch${t >= c.tiers.length ? ' done' : ''}">
+          <div class="ch-head"><span class="ch-ico">${c.icon}︎</span><span class="ch-name">${c.name}</span><span class="ch-stars">${stars}</span></div>
+          <div class="ch-rule">${c.rule}</div>
+          <div class="ch-rew">${t ? `<span>Reward</span> ${c.reward(t)}` : ''}${t < c.tiers.length ? ` <i>→ ${c.reward(t + 1)} at wave ${c.tiers[t]}</i>` : ' <b>COMPLETE</b>'}</div>
+          <button class="small ch-go" data-ch="${c.id}">${t >= c.tiers.length ? 'Replay' : 'Start'} ▶</button>
+        </div>`;
+      }).join('');
+    }
     const hzOn = hazardsUnlocked(save);
     $('hazards').classList.toggle('hidden', !hzOn);
     if (hzOn) {
@@ -263,6 +286,7 @@ export class UI {
       <div class="ds-row"><span>Shift length</span><b>${m}:${String(s).padStart(2, '0')}</b></div>
       ${info.siphoned ? `<div class="ds-row"><span>Cores siphoned mid-shift</span><b>+${fmt(info.siphoned)} ◈</b></div>` : ''}
       <div class="ds-row big"><span>Aether cores extracted</span><b>+${fmt(info.earned)} ◈</b></div>
+      ${info.challenge ? `<div class="ds-row"><span>Challenge · ${info.challenge.name}</span><b style="color:#7df9ff">${'★'.repeat(info.chTier)}${'☆'.repeat(info.challenge.tiers.length - info.chTier)}</b></div>` : ''}
       ${info.hazardBonus > 0 ? `<div class="ds-row"><span>Hazard contracts</span><b style="color:#ff8a3d">+${Math.round(info.hazardBonus * 100)}%</b></div>` : ''}
       ${info.reforgeBp > 0 ? `<div class="ds-row"><span>Reforge value (The Foundry)</span><b style="color:var(--bp)">${fmt(info.reforgeBp)} ✎</b></div>` : ''}`;
   }

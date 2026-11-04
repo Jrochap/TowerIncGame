@@ -1,12 +1,13 @@
 // Tower Inc. — run simulation: waves, enemies, weapons, economy, death.
 import * as THREE from 'three';
 import {
-  ENEMY_TYPES, TOWER_RADIUS, SPAWN_RADIUS, SHOP, shopCost,
+  ENEMY_TYPES, TOWER_RADIUS, SPAWN_RADIUS, SHOP, shopCost, shopLock,
   waveHpMult, waveDmgMult, waveCount, waveCogMult, spawnDuration, coresForRun,
 } from './config.js';
 import { computeStats } from './stats.js';
 import { writeSave } from './save.js';
 import { startWaveFor, blueprintsFor, rawBlueprints, hazardBonus } from './foundry.js';
+import { CHALLENGE_MAP, tiersFor } from './challenges.js';
 import { COLORS } from './world.js';
 import { fmt } from './util.js';
 import { sfx } from './audio.js';
@@ -28,7 +29,7 @@ export class Game {
     this.speed = 1; this.paused = false;
     this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = []; this.drones = [];
     this.sorted = [];
-    this.shop = {}; this.hz = {};
+    this.shop = {}; this.hz = {}; this.challenge = null; this.nextChallenge = null;
     this.onDeath = null;
     this.refreshMeta();
   }
@@ -36,14 +37,17 @@ export class Game {
   // Stats outside a run (menu / skill tree): tree only, so the tower model shows unlocked modules.
   refreshMeta() {
     if (this.state === 'playing') return;
-    this.stats = computeStats(this.save.tree, {}, this.save.foundry);
+    this.stats = computeStats(this.save.tree, {}, this.save.foundry, this.save.challenges);
     this.world.applyModules(this.stats);
   }
 
-  startRun() {
+  // challengeId: run under that challenge's rules (null = normal shift)
+  startRun(challengeId = null) {
     this.clearEntities();
     this.world.resetTower();
-    const base = computeStats(this.save.tree, {}, this.save.foundry);
+    this.challenge = challengeId && CHALLENGE_MAP[challengeId] ? CHALLENGE_MAP[challengeId] : null;
+    this.nextChallenge = challengeId;
+    const base = computeStats(this.save.tree, {}, this.save.foundry, this.save.challenges, challengeId);
     this.shop = {};
     if (base.kitLevel > 0) for (const u of SHOP) if (!u.req || base[u.req]) this.shop[u.id] = Math.min(u.max ?? Infinity, base.kitLevel);
     if (base.blueprint > 0) for (const id of ['dmg', 'rate', 'hp', 'regen']) this.shop[id] = (this.shop[id] || 0) + base.blueprint;
@@ -59,19 +63,20 @@ export class Game {
     this.muzzleSide = 0; this.podSide = 0; this.laserState = []; this.autoT = 1;
     this.spawnQueue = []; this.waveTimer = 0; this.waveDur = 1; this.breakTimer = 1.5; this.inWave = false;
     // Express Elevator: skip ahead, paid roughly what those waves would have earned
-    const sw = startWaveFor(this.save);
+    const sw = this.challenge ? 1 : startWaveFor(this.save);
     if (sw > 1) {
       this.wave = sw - 1;
       this.cogs += skippedCogs(sw - 1) * this.stats.cogMult;
     }
     this.startWave = Math.max(1, sw);
-    this.hz = this.save.reforges > 0 ? { ...this.save.hazards } : {};
+    this.hz = this.save.reforges > 0 && !this.challenge ? { ...this.save.hazards } : {};
+    this.chTier = this.challenge ? (this.save.challenges[this.challenge.id] || 0) : 0;
     this.state = 'playing'; this.paused = false;
   }
 
   recompute() {
     const prev = this.stats;
-    this.stats = computeStats(this.save.tree, this.shop, this.save.foundry);
+    this.stats = computeStats(this.save.tree, this.shop, this.save.foundry, this.save.challenges, this.challenge?.id);
     if (prev) {
       if (this.stats.maxHp > prev.maxHp) this.hp += this.stats.maxHp - prev.maxHp;
       this.hp = Math.min(this.hp, this.stats.maxHp);
@@ -120,7 +125,7 @@ export class Game {
   buyShop(id, mode) {
     if (this.state !== 'playing') return 0;
     const u = SHOP.find(x => x.id === id);
-    if (!u || (u.req && !this.stats[u.req])) return 0;
+    if (!u || shopLock(u, this.stats)) return 0;
     const limit = mode === 'max' ? 1000 : mode;
     let n = 0;
     while (n < limit) {
@@ -145,7 +150,7 @@ export class Game {
     const cands = [];
     for (const u of SHOP) {
       const lvl = this.shop[u.id] || 0;
-      if ((u.req && !s[u.req]) || lvl >= (u.max ?? Infinity)) continue;
+      if (shopLock(u, s) || lvl >= (u.max ?? Infinity)) continue;
       if (ab.mode === 'selected' && !ab.sel[u.id]) continue;
       const cost = shopCost(u, lvl, s.shopDiscount);
       if (cost <= this.cogs) cands.push({ u, cost });
@@ -213,8 +218,8 @@ export class Game {
     this.wave++;
     const w = this.wave;
     this.inWave = true; this.waveTimer = 0; this.siegeWarned = false;
-    const count = waveCount(w);
-    const dur = spawnDuration(w) * (1 - this.stats.waveSpeed);
+    const count = Math.round(waveCount(w) * (this.stats.overtime ? 1.6 : 1));
+    const dur = spawnDuration(w) * (1 - this.stats.waveSpeed) * (this.stats.overtime ? 0.5 : 1);
     this.waveDur = dur;
     const pool = Object.entries(ENEMY_TYPES).filter(([, d]) => d.weight > 0 && d.minWave <= w);
     const totalW = pool.reduce((a, [, d]) => a + d.weight, 0);
@@ -226,7 +231,7 @@ export class Game {
       q.push({ key, n, t: (i / count) * dur + Math.random() * 0.4 });
       i += n;
     }
-    const bossWave = w % 10 === 0;
+    const bossWave = w % (this.stats.bossEvery || 10) === 0;
     if (bossWave) q.push({ key: 'boss', n: 1, t: dur * 0.35 });
     q.sort((a, b) => a.t - b.t);
     this.spawnQueue = q;
@@ -237,11 +242,21 @@ export class Game {
   completeWave() {
     const w = this.wave, s = this.stats;
     this.inWave = false;
-    this.breakTimer = this.enemies.length === 0 ? 2.5 : 0.3;
+    this.breakTimer = (this.enemies.length === 0 ? 2.5 : 0.3) * (s.overtime ? 0.4 : 1);
     const bounty = (6 + w * 2 + s.waveBounty * (1 + w * 0.1)) * s.cogMult;
     const interest = Math.min(this.cogs * s.interest, 40 + w * 30);
     this.cogs += bounty + interest;
     sfx.play('clear');
+    if (this.challenge) {
+      const t = tiersFor(this.challenge, w);
+      if (t > this.chTier) {
+        this.chTier = t;
+        this.save.challenges[this.challenge.id] = Math.max(this.save.challenges[this.challenge.id] || 0, t);
+        writeSave(this.save);
+        sfx.play('treeBuy');
+        this.ui.banner(`TIER ${t} CLEARED`, `${this.challenge.name} · ${this.challenge.reward(t)}`);
+      }
+    }
     this.ui.toast(`Wave ${w} survived · +${fmt(bounty)} ⚙${interest >= 1 ? ` · interest +${fmt(interest)} ⚙` : ''}`);
   }
 
@@ -262,7 +277,7 @@ export class Game {
       mesh: this.world.acquireEnemy(key, elite),
       x: Math.cos(angle) * r, z: Math.sin(angle) * r, y: def.y,
       hp, maxHp: hp,
-      speed: def.speed * (1 + Math.min(0.5, w * 0.006)) * (elite ? 0.9 : 1) * (hz.swift ? 1.45 : 1),
+      speed: def.speed * (1 + Math.min(0.5, w * 0.006)) * (elite ? 0.9 : 1) * (hz.swift ? 1.45 : 1) * (this.stats.overtime ? 1.6 : 1),
       dmg: def.dmg * waveDmgMult(w) * (elite ? 2 : 1),
       radius: def.radius * scale,
       attacking: false, atkTimer: Math.random() * 0.5,
@@ -331,15 +346,15 @@ export class Game {
     this.state = 'dying'; this.dyingT = 2.4; this.hp = 0;
     const hzB = hazardBonus(this.hz);
     const earned = Math.floor(coresForRun(this.wave, this.kills, this.bossKills) * this.stats.coreMult * (1 + hzB));
-    this.save.cycleBp = Math.max(this.save.cycleBp || 0, rawBlueprints(this.wave, this.hz));
+    if (!this.challenge) this.save.cycleBp = Math.max(this.save.cycleBp || 0, rawBlueprints(this.wave, this.hz));
     const prevBest = this.save.bestWave;
     this.save.cores += earned;
     this.save.totalCores += earned + this.siphoned;
-    this.save.bestWave = Math.max(prevBest, this.wave);
+    if (!this.challenge) this.save.bestWave = Math.max(prevBest, this.wave);
     this.save.runs++;
     this.save.totalKills += this.kills;
     writeSave(this.save);
-    this.deathInfo = { hazardBonus: hzB, reforgeBp: blueprintsFor(this.save), wave: this.wave, kills: this.kills, bosses: this.bossKills, earned, siphoned: this.siphoned, newBest: this.wave > prevBest, time: this.time };
+    this.deathInfo = { challenge: this.challenge, chTier: this.chTier, hazardBonus: hzB, reforgeBp: blueprintsFor(this.save), wave: this.wave, kills: this.kills, bosses: this.bossKills, earned, siphoned: this.siphoned, newBest: !this.challenge && this.wave > prevBest, time: this.time };
     this.world.towerDestroyed();
     sfx.play('destroyed');
     this.laserActive = false;
@@ -376,7 +391,8 @@ export class Game {
     if (targets.length) {
       W.aimTurret(Math.atan2(targets[0].x, targets[0].z));
       let guard = 0;
-      while (this.fireTimer <= 0 && guard++ < 6) {
+      if (s.cannonOff) this.fireTimer = Math.max(this.fireTimer, 0); // Iron Curtain: barrels stay cold
+      while (!s.cannonOff && this.fireTimer <= 0 && guard++ < 6) {
         this.fireTimer += 1 / s.fireRate;
         const shots = s.projectiles + Math.floor(s.multishot) + (Math.random() < s.multishot % 1 ? 1 : 0);
         for (let i = 0; i < shots; i++) this.fireProjectile(targets[i % targets.length]);

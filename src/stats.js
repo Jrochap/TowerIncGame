@@ -1,15 +1,17 @@
 import { BASE_STATS, SHOP } from './config.js';
 import { NODES } from './skilltree.js';
 import { applyFoundry } from './foundry.js';
+import { applyChallengeRewards, applyChallengeRule } from './challenges.js';
 
 // Folds skill tree, Foundry and workshop levels into a final, ready-to-use stat block.
-export function computeStats(tree, shop = {}, foundry = {}) {
+export function computeStats(tree, shop = {}, foundry = {}, chDone = {}, chActive = null) {
   const s = { ...BASE_STATS };
   for (const n of NODES) {
     const l = tree[n.id] || 0;
     if (l > 0) n.apply(s, l);
   }
   applyFoundry(s, foundry);
+  applyChallengeRewards(s, chDone);
   for (const u of SHOP) {
     const l = shop[u.id] || 0;
     if (l > 0 && (!u.req || s[u.req])) u.apply(s, l);
@@ -56,6 +58,7 @@ export function computeStats(tree, shop = {}, foundry = {}) {
   f.shopDiscount = Math.min(0.6, s.shopDiscount);
   f.coreSiphon = Math.min(0.2, s.coreSiphon);
   f.waveSpeed = Math.min(0.5, s.waveSpeed);
-  f.autoInterval = s.autoBuy > 0 ? 2 / s.autoBuy : 0;
+  applyChallengeRule(f, chActive);
+  f.autoInterval = f.autoBuy > 0 ? 2 / f.autoBuy : 0;
   return f;
 }

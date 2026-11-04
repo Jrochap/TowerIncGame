@@ -86,6 +86,10 @@ $('foundry-groups').addEventListener('click', e => {
   sfx.play('treeBuy'); writeSave(save); game.refreshMeta();
   ui.renderFoundry(save); ui.popFoundry(b.dataset.id);
 });
+$('ch-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-ch]');
+  if (b) startRun(b.dataset.ch);
+});
 $('hz-list').addEventListener('click', e => {
   const b = e.target.closest('[data-hz]');
   if (!b) return;
@@ -105,12 +109,13 @@ $('btn-reforge').onclick = () => {
   ui.toast(`Reforged · +${fmt(bp)} ✎ Blueprints`);
 };
 
-function startRun() {
+function startRun(challengeId = null) {
   ui.clearNums();
-  game.startRun();
+  game.startRun(typeof challengeId === 'string' ? challengeId : null);
   setSpeed(1);
   setScreen('play');
   ui.renderShop(game);
+  if (game.challenge) ui.banner(`CHALLENGE · ${game.challenge.name.toUpperCase()}`, game.challenge.rule, true);
 }
 
 function setPaused(p) {
@@ -143,7 +148,7 @@ game.onDeath = info => {
 
 // ── buttons ──
 $('btn-start').onclick = startRun;
-$('btn-retry').onclick = startRun;
+$('btn-retry').onclick = () => startRun(game.nextChallenge); // redeploy repeats the same kind of shift
 $('btn-tree-deploy').onclick = startRun;
 $('btn-tree-menu').onclick = () => { treeReturn = 'menu'; setScreen('tree'); };
 $('btn-tree-death').onclick = () => { treeReturn = 'death'; setScreen('tree'); };

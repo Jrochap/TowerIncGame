@@ -67,6 +67,19 @@ splitting, regeneration, damage-soaking hulls, speed, death explosions) that add
 and Blueprint value of runs played under it. The best run of the cycle, bonus included, sets the
 Reforge payout.
 
+**Challenges** also unlock after your first Reforge (Foundry screen). Each is a restricted shift with
+three wave targets. Every tier cleared grants a permanent reward that survives Reforges:
+
+| Challenge | Rule | Reward per tier |
+|---|---|---|
+| Leviathan Season | a boss every 5 waves | +15% damage vs elites & bosses |
+| Iron Curtain | main cannon offline | +15% secondary weapon damage |
+| Bankruptcy | Workshop closed | +20% cog income |
+| Blackout | no shield, tesla, nova or drones; −75% regen | +4% damage reduction |
+| Overtime | 60% more enemies, twice as fast, 60% faster | +10% Blueprints |
+
+Challenge shifts start at wave 1, ignore hazard contracts and don't count toward your best wave.
+
 The **Drone Bay** prototype (Foundry, 12 Blueprints) opens a seven-node cluster on the Skill
 Matrix's outer rim, beyond Integrated Fire Control. Rotor drones dive at the toughest enemies
 anywhere in range, splash and paint them (painted enemies take extra damage from everything), and
@@ -84,6 +97,7 @@ enemies hit harder until the crowd thins, so a stalled run always ends.
 | `src/config.js` | base stats, enemy types, wave scaling curves, Workshop upgrades |
 | `src/skilltree.js` | Skill Matrix nodes, layout, buy/respec, Overclock pricing |
 | `src/foundry.js` | Foundry upgrades, hazard contracts, Blueprint formula, Reforge |
+| `src/challenges.js` | challenge rules, tier targets and permanent rewards |
 | `src/stats.js` | folds tree and Workshop levels into final stats |
 | `src/game.js` | run simulation: waves, enemies, weapons, economy |
 | `src/world.js` | Three.js scene, tower model, city, pooled meshes, particles/effects, bloom |

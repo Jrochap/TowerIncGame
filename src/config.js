@@ -56,16 +56,24 @@ export const spawnDuration = w => Math.min(18, 8 + w * 0.3);
 export const coresForRun = (wave, kills, bosses) =>
   Math.pow(Math.max(0, wave - 1), 1.5) * 1.2 + kills / 20 + bosses * 15;
 
+// Why a Workshop row can't be bought right now (null = buyable): challenge rules or a missing unlock.
+export function shopLock(u, s) {
+  if (s.shopOff) return 'Challenge: Workshop closed';
+  if (u.cannon && s.cannonOff) return 'Challenge: cannon offline';
+  if (u.req && !s[u.req]) return u.lockText;
+  return null;
+}
+
 export const shopCost = (u, lvl, discount = 0) => Math.ceil(u.base * Math.pow(u.g, lvl) * (1 - discount));
 
 // In-run Workshop upgrades, paid with cogs. `req` names a stat flag that must be unlocked in the Skill Matrix.
 export const SHOP = [
-  { id: 'dmg',    tab: 'atk', name: 'Barrel Damage',  base: 8,  g: 1.15, desc: '+10% cannon damage',      apply: (s, l) => { s.dmgMult *= 1 + 0.10 * l; } },
-  { id: 'rate',   tab: 'atk', name: 'Fire Rate',      base: 10, g: 1.18, max: 60, desc: '+5% fire rate',   apply: (s, l) => { s.rateMult *= 1 + 0.05 * l; } },
-  { id: 'range',  tab: 'atk', name: 'Range',          base: 15, g: 1.25, max: 15, desc: '+4% range',       apply: (s, l) => { s.rangeMult *= 1 + 0.04 * l; } },
-  { id: 'crit',   tab: 'atk', name: 'Crit Chance',    base: 14, g: 1.2,  max: 40, desc: '+1% crit chance', apply: (s, l) => { s.critChance += 0.01 * l; } },
-  { id: 'critm',  tab: 'atk', name: 'Crit Damage',    base: 14, g: 1.18, desc: '+10% crit damage',          apply: (s, l) => { s.critMult += 0.1 * l; } },
-  { id: 'multi',  tab: 'atk', name: 'Multishot',      base: 25, g: 1.24, max: 30, desc: '+2% chance for an extra shot', apply: (s, l) => { s.multishot += 0.02 * l; } },
+  { id: 'dmg',    tab: 'atk', cannon: 1, name: 'Barrel Damage',  base: 8,  g: 1.15, desc: '+10% cannon damage',      apply: (s, l) => { s.dmgMult *= 1 + 0.10 * l; } },
+  { id: 'rate',   tab: 'atk', cannon: 1, name: 'Fire Rate',      base: 10, g: 1.18, max: 60, desc: '+5% fire rate',   apply: (s, l) => { s.rateMult *= 1 + 0.05 * l; } },
+  { id: 'range',  tab: 'atk', cannon: 1, name: 'Range',          base: 15, g: 1.25, max: 15, desc: '+4% range',       apply: (s, l) => { s.rangeMult *= 1 + 0.04 * l; } },
+  { id: 'crit',   tab: 'atk', cannon: 1, name: 'Crit Chance',    base: 14, g: 1.2,  max: 40, desc: '+1% crit chance', apply: (s, l) => { s.critChance += 0.01 * l; } },
+  { id: 'critm',  tab: 'atk', cannon: 1, name: 'Crit Damage',    base: 14, g: 1.18, desc: '+10% crit damage',          apply: (s, l) => { s.critMult += 0.1 * l; } },
+  { id: 'multi',  tab: 'atk', cannon: 1, name: 'Multishot',      base: 25, g: 1.24, max: 30, desc: '+2% chance for an extra shot', apply: (s, l) => { s.multishot += 0.02 * l; } },
 
   { id: 'hp',     tab: 'def', name: 'Hull Plating',   base: 8,  g: 1.15, desc: '+12% max HP',               apply: (s, l) => { s.hpMult *= 1 + 0.12 * l; } },
   { id: 'regen',  tab: 'def', name: 'Steam Regen',    base: 10, g: 1.17, desc: '+0.6 HP/s and +0.05% max HP/s', apply: (s, l) => { s.regen += 0.6 * l; s.regenPct += 0.0005 * l; } },

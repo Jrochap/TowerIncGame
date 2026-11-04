@@ -299,6 +299,25 @@ button.hz.on { opacity: 1; border-color: #ff5a3c; background: linear-gradient(18
 .hz.on .hz-ico, .hz.on .hz-name b { color: #ff8a3d; }
 .hz.on .hz-desc { color: #e0b8a8; }
 
+.challenges { padding: 14px 16px; border-color: rgba(125,249,255,.55); }
+.ch-title { color: #7df9ff; font-size: 15px; text-shadow: 0 0 14px rgba(125,249,255,.6); }
+.ch-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; }
+.ch { display: flex; flex-direction: column; gap: 5px; padding: 9px 10px; border: 1px solid #3b2d4f; border-radius: 4px; background: linear-gradient(180deg, #1d1630, #120d1c); }
+.ch.done { border-color: rgba(125,249,255,.6); }
+.ch-head { display: flex; align-items: center; gap: 8px; }
+.ch-ico { font-size: 18px; color: #7df9ff; width: 22px; text-align: center; }
+.ch-name { font-family: 'Orbitron'; font-weight: 700; font-size: 12px; flex: 1; }
+.ch-stars { display: flex; gap: 6px; font-size: 13px; color: #3b2d4f; }
+.ch-stars span.on { color: #7df9ff; text-shadow: 0 0 8px rgba(125,249,255,.8); }
+.ch-stars i { font-style: normal; font-size: 9px; color: var(--dim); margin-left: 1px; }
+.ch-rule { font-size: 11px; color: #c8c1dc; line-height: 1.3; }
+.ch-rew { font-size: 11px; color: var(--ink); }
+.ch-rew span { color: var(--dim); text-transform: uppercase; font-size: 9px; letter-spacing: .1em; }
+.ch-rew i { font-style: normal; color: var(--green); }
+.ch-rew b { color: #7df9ff; font-family: 'Orbitron'; font-size: 10px; }
+button.ch-go { align-self: flex-end; border-color: #7df9ff; color: #7df9ff; }
+.chal-tag { margin-top: 6px; font-size: 11px; color: #7df9ff; letter-spacing: .04em; text-shadow: 0 0 6px rgba(125,249,255,.5); }
+
 /* ---------- small screens ---------- */
 @media (max-width: 760px) {
   .hud-left { width: auto; right: 12px; padding: 8px 10px; }
