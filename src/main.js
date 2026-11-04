@@ -202,13 +202,17 @@ document.querySelectorAll('.tabs button').forEach(b => {
     ui.renderShop(game);
   };
 });
+// Workshop buy amount (×1 / ×10 / MAX), remembered per browser like the game speed.
+const BUYMODE_KEY = 'towerinc.buymode';
+function setBuyMode(m) {
+  ui.mode = m === 'max' ? 'max' : Number(m);
+  document.querySelectorAll('.buy-modes button').forEach(x => x.classList.toggle('active', x.dataset.mode === String(m)));
+  try { localStorage.setItem(BUYMODE_KEY, String(m)); } catch (e) { /* ignore */ }
+}
 document.querySelectorAll('.buy-modes button').forEach(b => {
-  b.onclick = () => {
-    ui.mode = b.dataset.mode === 'max' ? 'max' : Number(b.dataset.mode);
-    document.querySelectorAll('.buy-modes button').forEach(x => x.classList.toggle('active', x === b));
-    ui.updateShop(game);
-  };
+  b.onclick = () => { setBuyMode(b.dataset.mode); ui.updateShop(game); };
 });
+try { const m = localStorage.getItem(BUYMODE_KEY); if (['1', '10', 'max'].includes(m)) setBuyMode(m); } catch (e) { /* storage unavailable */ }
 $('shop-list').addEventListener('click', e => {
   const b = e.target.closest('.upg');
   if (!b) return;
