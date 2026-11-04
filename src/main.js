@@ -92,6 +92,9 @@ $('btn-respec').onclick = () => {
   respec(save); writeSave(save); game.refreshMeta();
   $('tree-cores').textContent = fmt(save.cores);
 };
+document.querySelectorAll('[data-auto-mode]').forEach(b => {
+  b.onclick = () => { save.autobuy.mode = b.dataset.autoMode; writeSave(save); ui.updateShop(game); };
+});
 $('btn-export').onclick = () => exportSave(save);
 $('btn-import').onclick = () => $('import-file').click();
 $('import-file').onchange = async e => {
@@ -134,6 +137,12 @@ document.querySelectorAll('.buy-modes button').forEach(b => {
 $('shop-list').addEventListener('click', e => {
   const b = e.target.closest('.upg');
   if (!b) return;
+  if (e.target.closest('.u-auto')) {
+    const sel = save.autobuy.sel, id = b.dataset.id;
+    if (sel[id]) delete sel[id]; else sel[id] = true;
+    writeSave(save); sfx.play('click'); ui.updateShop(game);
+    return;
+  }
   if (game.buyShop(b.dataset.id, ui.mode) > 0) { sfx.play('buy'); ui.flashBought(b.dataset.id); ui.updateShop(game); }
   else sfx.play('deny');
 });

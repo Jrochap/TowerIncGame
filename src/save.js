@@ -1,7 +1,15 @@
 const KEY = 'towerinc.save.v1';
 
 export function defaultSave() {
-  return { cores: 0, tree: { core: 1 }, bestWave: 0, runs: 0, totalKills: 0, totalCores: 0 };
+  return { cores: 0, tree: { core: 1 }, bestWave: 0, runs: 0, totalKills: 0, totalCores: 0, autobuy: { mode: 'any', sel: {} } };
+}
+
+// Fill in fields missing from older saves (nested objects merged too).
+function normalize(d) {
+  const def = defaultSave();
+  const ab = { ...def.autobuy, ...(d.autobuy || {}) };
+  ab.sel = { ...(ab.sel || {}) };
+  return { ...def, ...d, tree: { core: 1, ...(d.tree || {}) }, autobuy: ab };
 }
 
 export function loadSave() {
@@ -9,7 +17,7 @@ export function loadSave() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      return { ...defaultSave(), ...d, tree: { core: 1, ...(d.tree || {}) } };
+      return normalize(d);
     }
   } catch (e) { /* storage unavailable or corrupt: start fresh */ }
   return defaultSave();
@@ -38,7 +46,7 @@ export function parseSave(text) {
   if (!d || typeof d !== 'object' || typeof d.cores !== 'number' || !d.tree || typeof d.tree !== 'object') {
     throw new Error('Not a Tower Inc. save file');
   }
-  return { ...defaultSave(), ...d, tree: { core: 1, ...d.tree } };
+  return normalize(d);
 }
 
 export function wipeSave() {

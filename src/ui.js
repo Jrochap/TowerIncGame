@@ -48,18 +48,22 @@ export class UI {
     for (const u of SHOP.filter(x => x.tab === this.tab)) {
       const b = document.createElement('button');
       b.className = 'upg'; b.dataset.id = u.id;
-      b.innerHTML = `<div class="u-top"><span class="u-name">${u.name}</span><span class="u-lvl"></span></div><div class="u-desc">${u.desc}</div><div class="u-cost"></div>`;
+      b.innerHTML = `<div class="u-top"><span class="u-name">${u.name}</span><span class="u-right"><span class="u-auto" title="Let the Clockwork Clerk buy this">AUTO</span><span class="u-lvl"></span></span></div><div class="u-desc">${u.desc}</div><div class="u-cost"></div>`;
       this.shopList.appendChild(b);
-      this.items.push({ u, b, lvl: b.querySelector('.u-lvl'), cost: b.querySelector('.u-cost') });
+      this.items.push({ u, b, lvl: b.querySelector('.u-lvl'), cost: b.querySelector('.u-cost'), auto: b.querySelector('.u-auto') });
     }
     this.updateShop(game);
   }
 
   updateShop(game) {
-    const s = game.stats;
+    const s = game.stats, ab = game.save.autobuy;
+    this.updateAutoBar(s, ab);
+    const showAuto = s.autoBuy > 0 && ab.mode === 'selected';
     for (const it of this.items) {
       const { u, b } = it;
       const lvl = game.shop[u.id] || 0, max = u.max ?? Infinity;
+      it.auto.classList.toggle('hidden', !showAuto || !!(u.req && !s[u.req]));
+      it.auto.classList.toggle('on', !!ab.sel[u.id]);
       if (u.req && !s[u.req]) {
         b.className = 'upg locked'; it.lvl.textContent = ''; it.cost.textContent = '🔒 ' + u.lockText;
         continue;
@@ -73,6 +77,14 @@ export class UI {
       if (b.className !== cls) b.className = cls;
     }
     this.statDefs.forEach(([, f], i) => { this.statCells[i].textContent = f(s); });
+  }
+
+  updateAutoBar(s, ab) {
+    const bar = document.getElementById('auto-bar');
+    bar.classList.toggle('hidden', !(s.autoBuy > 0));
+    if (!(s.autoBuy > 0)) return;
+    bar.querySelectorAll('[data-auto-mode]').forEach(b => b.classList.toggle('active', b.dataset.autoMode === ab.mode));
+    document.getElementById('auto-rate').textContent = ab.mode === 'off' ? '' : `every ${s.autoInterval.toFixed(1)}s`;
   }
 
   flashBought(id) {

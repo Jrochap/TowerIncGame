@@ -50,5 +50,6 @@ export function computeStats(tree, shop = {}) {
   f.shopDiscount = Math.min(0.6, s.shopDiscount);
   f.coreSiphon = Math.min(0.2, s.coreSiphon);
   f.waveSpeed = Math.min(0.5, s.waveSpeed);
+  f.autoInterval = s.autoBuy > 0 ? 2 / s.autoBuy : 0;
   return f;
 }

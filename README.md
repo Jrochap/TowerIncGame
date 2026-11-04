@@ -22,7 +22,7 @@ python3 -m http.server 8000
 - **Cogs ⚙** come from kills and wave bounties. Spend them in the **Workshop** (right panel).
   Workshop upgrades reset when you die.
 - **Aether Cores ◈** are awarded when the tower falls. The amount scales with the wave you reached,
-  your kills, and bosses killed. Spend them in the **Skill Matrix** (81 nodes). These upgrades are
+  your kills, and bosses killed. Spend them in the **Skill Matrix** (82 nodes). These upgrades are
   permanent.
 - If a wave isn't cleared within ~12s of its last spawn, the next wave starts anyway. Fall behind
   and the horde snowballs.
@@ -38,7 +38,9 @@ python3 -m http.server 8000
 | Ordnance | homing rocket pods (burn, cluster bomblets) and the Prism Laser (multi-beam, ramping) |
 | Synergy | five hybrid nodes between neighbouring branches |
 
-Each branch ends in a 400-core capstone.
+Each branch ends in a 400-core capstone. Commerce also holds the **Clockwork Clerk**, which auto-buys
+Workshop upgrades. It can buy only the rows you mark AUTO (cheapest first) or anything it can
+afford (random, weighted toward cheaper upgrades). Each level makes it faster.
 
 ### Controls
 `Space` pause · `1/2/3` 1×/2×/4× speed · `M` mute · `Esc` menu (self-destruct to bank cores) · drag to orbit · scroll to zoom

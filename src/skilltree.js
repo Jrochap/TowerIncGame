@@ -81,6 +81,9 @@ N('eco_siphon',   'eco', 4, -1.2, 'Core Siphon',         10, 10, ['eco_cores'], 
 N('eco_blue',     'eco', 4, 0,    'Blueprint Archive',   5,  30, ['eco_interest'], add('blueprint', 1, 'starting level in Damage, Fire Rate, Hull, Regen'), { icon: '✎', g: 2 });
 N('eco_bounty',   'eco', 4, 1.2,  'Bounty Hunter',       10, 8,  ['eco_disc'], addPct('bossBounty', 0.25, 'cogs from elites & bosses'), { icon: '$' });
 N('eco_turbine',  'eco', 5, -1.4, 'Steam Turbines',      10, 15, ['eco_siphon'], add('passiveCogs', 1, 'cogs/s passive income (scales with wave)'), { icon: '≋', g: 1.4 });
+N('eco_clerk',    'eco', 4.5, 0.6, 'Clockwork Clerk',    5,  40, ['eco_blue'],
+  custom((s, l) => { s.autoBuy = l; }, l => `Auto-buys a Workshop upgrade every ${r1(2 / l)}s`),
+  { icon: '♺', g: 1.8, desc: 'A brass automaton staffs the Workshop counter. Choose in the Workshop whether it buys only the upgrades you mark, or anything it can afford.' });
 N('eco_cogs2',    'eco', 5, 0,    'Automated Foundry',   15, 15, ['eco_blue'], mul('cogMult', 0.12, 'cog income'), { icon: '⚒', g: 1.3 });
 N('eco_accel',    'eco', 5, 1.4,  'Wave Accelerator',    5,  20, ['eco_bounty'],
   custom((s, l) => { s.waveSpeed += 0.08 * l; s.coreMult *= 1 + 0.1 * l; }, l => `Waves arrive ${8 * l}% faster, +${10 * l}% cores`), { icon: '⏩', g: 1.6 });

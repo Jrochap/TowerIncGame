@@ -46,7 +46,7 @@ export class Game {
     this.wave = 0; this.kills = 0; this.bossKills = 0; this.siphoned = 0;
     this.time = 0; this.lastHit = -99; this.lastStandUsed = false;
     this.fireTimer = 0; this.teslaTimer = 0; this.novaTimer = 2; this.missileTimer = 0.5;
-    this.muzzleSide = 0; this.podSide = 0; this.laserState = [];
+    this.muzzleSide = 0; this.podSide = 0; this.laserState = []; this.autoT = 1;
     this.spawnQueue = []; this.waveTimer = 0; this.waveDur = 1; this.breakTimer = 1.5; this.inWave = false;
     this.state = 'playing'; this.paused = false;
   }
@@ -114,6 +114,33 @@ export class Game {
     return n;
   }
 
+  // Clockwork Clerk: one purchase per tick. 'selected' buys the cheapest marked upgrade;
+  // 'any' picks randomly among everything affordable, weighted toward cheaper upgrades.
+  updateAutoBuy(dt) {
+    const s = this.stats, ab = this.save.autobuy;
+    if (!s.autoBuy || ab.mode === 'off') return;
+    this.autoT -= dt;
+    if (this.autoT > 0) return;
+    this.autoT = s.autoInterval;
+    const cands = [];
+    for (const u of SHOP) {
+      const lvl = this.shop[u.id] || 0;
+      if ((u.req && !s[u.req]) || lvl >= (u.max ?? Infinity)) continue;
+      if (ab.mode === 'selected' && !ab.sel[u.id]) continue;
+      const cost = shopCost(u, lvl, s.shopDiscount);
+      if (cost <= this.cogs) cands.push({ u, cost });
+    }
+    if (!cands.length) return;
+    let pick = cands[0];
+    if (ab.mode === 'selected') {
+      for (const c of cands) if (c.cost < pick.cost) pick = c;
+    } else {
+      let r = Math.random() * cands.reduce((a, c) => a + 1 / c.cost, 0);
+      for (const c of cands) { r -= 1 / c.cost; if (r <= 0) { pick = c; break; } }
+    }
+    if (this.buyShop(pick.u.id, 1)) this.ui.flashBought(pick.u.id);
+  }
+
   // ───────────────────────────── main update ─────────────────────────────
   update(dt) {
     if (this.state === 'playing') {
@@ -125,6 +152,7 @@ export class Game {
       this.updateProjectiles(dt);
       this.updateMissiles(dt);
       this.updateDelayed(dt);
+      this.updateAutoBuy(dt);
       this.enemies = this.enemies.filter(e => !e.dead);
     } else if (this.state === 'dying') {
       this.dyingT -= dt;

@@ -116,6 +116,14 @@ button.active { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 1
 .buy-modes { display: flex; gap: 4px; align-items: center; font-size: 10px; color: var(--dim); }
 .buy-modes span { margin-right: 4px; letter-spacing: .15em; }
 .buy-modes button { padding: 4px 9px; font-size: 9px; }
+.auto-bar { display: flex; gap: 4px; align-items: center; font-size: 10px; color: var(--brass-hi); }
+.auto-bar span { margin-right: 4px; letter-spacing: .15em; }
+.auto-bar button { padding: 4px 7px; font-size: 9px; }
+.auto-bar small { color: var(--dim); margin-left: auto; }
+.upg .u-right { display: flex; gap: 6px; align-items: center; }
+.upg .u-auto { font-size: 9px; padding: 1px 5px; border: 1px solid #4a3a5f; border-radius: 3px; color: var(--dim); letter-spacing: .08em; }
+.upg .u-auto:hover { border-color: var(--brass-hi); color: var(--ink); }
+.upg .u-auto.on { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 6px rgba(34,238,255,.4); }
 #shop-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
 #shop-list::-webkit-scrollbar { width: 6px; }
 #shop-list::-webkit-scrollbar-thumb { background: #4a3a5f; border-radius: 3px; }
