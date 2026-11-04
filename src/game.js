@@ -8,6 +8,7 @@ import { computeStats } from './stats.js';
 import { writeSave } from './save.js';
 import { COLORS } from './world.js';
 import { fmt } from './util.js';
+import { sfx } from './audio.js';
 
 const _v = new THREE.Vector3();
 const MAX_ALIVE = 260;
@@ -68,6 +69,7 @@ export class Game {
     for (const m of this.missiles) this.world.releaseMissile(m.mesh);
     this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = []; this.sorted = [];
     this.world.hideBeams();
+    this.laserActive = false;
     this.ui.hideBoss();
   }
 
@@ -172,6 +174,7 @@ export class Game {
     if (bossWave) q.push({ key: 'boss', n: 1, t: dur * 0.35 });
     q.sort((a, b) => a.t - b.t);
     this.spawnQueue = q;
+    sfx.play(bossWave ? 'bossAlarm' : 'wave');
     this.ui.banner(`WAVE ${w}`, bossWave ? '⚠ LEVIATHAN SIGNATURE DETECTED' : w === 1 ? 'Hold the line, engineer.' : '', bossWave);
   }
 
@@ -182,6 +185,7 @@ export class Game {
     const bounty = (6 + w * 2 + s.waveBounty * (1 + w * 0.1)) * s.cogMult;
     const interest = Math.min(this.cogs * s.interest, 40 + w * 30);
     this.cogs += bounty + interest;
+    sfx.play('clear');
     this.ui.toast(`Wave ${w} survived · +${fmt(bounty)} ⚙${interest >= 1 ? ` · interest +${fmt(interest)} ⚙` : ''}`);
   }
 
@@ -241,12 +245,14 @@ export class Game {
     this.hp -= d;
     this.lastHit = this.time;
     this.world.towerHit();
+    sfx.play('hit');
     this.ui.hurt(d / s.maxHp);
     if (src && s.thorns > 0 && !src.dead) this.damageEnemy(src, src.maxHp * s.thorns * (src.boss ? 0.1 : 1), { silent: true });
     if (this.hp <= 0) {
       if (s.lastStand && !this.lastStandUsed) {
         this.lastStandUsed = true;
         this.hp = s.maxHp * 0.5;
+        sfx.play('lastStand');
         this.ui.banner('LAST STAND', 'Emergency reserves engaged', true);
         this.world.nova(16);
         for (const e of this.enemies) {
@@ -273,6 +279,8 @@ export class Game {
     writeSave(this.save);
     this.deathInfo = { wave: this.wave, kills: this.kills, bosses: this.bossKills, earned, siphoned: this.siphoned, newBest: this.wave > prevBest, time: this.time };
     this.world.towerDestroyed();
+    sfx.play('destroyed');
+    this.laserActive = false;
     this.world.hideBeams();
     this.ui.hideBoss();
   }
@@ -335,6 +343,7 @@ export class Game {
               cur = this.findNearest(cur.x, cur.z, 7, hit);
             }
             W.lightning(pts);
+            sfx.play('tesla');
           }
         } else this.teslaTimer = 0;
       }
@@ -348,6 +357,7 @@ export class Game {
         if (cands.length) {
           this.novaTimer = 1 / s.novaRate;
           W.nova(s.novaRadius);
+          sfx.play('nova');
           for (const e of cands) {
             this.damageEnemy(e, s.novaDamage, { kind: 'volt' });
             const d = Math.sqrt(e.d2) || 1, k = s.novaKnock * (e.boss ? 0.15 : e.elite ? 0.5 : 1) * 4;
@@ -374,6 +384,9 @@ export class Game {
     }
 
     // prism laser
+    // laserLocked / laserPitch feed the hum: a swell on each new lock, pitch rising with the burn
+    this.laserActive = false;
+    let burn = 0;
     if (s.laserOn && targets.length) {
       const byHp = targets.slice().sort((a, b) => b.hp - a.hp);
       const r2 = s.range * s.range;
@@ -382,7 +395,7 @@ export class Game {
         if (i >= s.laserCount) { W.hideBeam(i); continue; }
         const st = this.laserState[i] || (this.laserState[i] = { target: null, ramp: 0, acc: 0, accT: 0 });
         let t = st.target && !st.target.dead && st.target.d2 <= r2 ? st.target : null;
-        if (!t) { t = byHp[i] || null; st.target = t; st.ramp = 0; }
+        if (!t) { t = byHp[i] || null; st.target = t; st.ramp = 0; if (t) this.laserLocked = true; }
         if (!t) { W.hideBeam(i); continue; }
         st.ramp += dt;
         const dmg = s.laserDps * (1 + s.laserRamp * Math.min(st.ramp, 5)) * dt;
@@ -391,13 +404,18 @@ export class Game {
         st.accT += dt;
         if (st.accT > 0.35) { this.ui.damageNumber(tx, ty + 1, tz, st.acc, false, 'laser'); st.acc = 0; st.accT = 0; }
         W.setBeam(i, from, _v.set(tx, ty, tz));
+        this.laserActive = true;
+        burn = Math.max(burn, Math.min(st.ramp, 5) / 5);
       }
     } else W.hideBeams();
+    // full bend with Thermal Lance (damage really ramps), a subtle one without
+    this.laserPitch = burn * (s.laserRamp > 0 ? 1 : 0.3);
   }
 
   fireProjectile(target) {
     const s = this.stats;
     const crit = Math.random() < s.critChance;
+    sfx.play(crit ? 'crit' : 'shoot');
     this.muzzleSide = 1 - this.muzzleSide;
     const mesh = this.world.acquireProjectile(crit);
     const p = this.world.muzzlePos(this.muzzleSide);
@@ -452,6 +470,7 @@ export class Game {
     this.podSide = 1 - this.podSide;
     const start = this.world.podPos(this.podSide);
     const mesh = this.world.acquireMissile();
+    sfx.play('launch');
     mesh.position.copy(start); mesh.visible = delay <= 0;
     this.missiles.push({
       mesh, start, target, delay, t: 0, done: false,
@@ -497,6 +516,7 @@ export class Game {
   explode(pos, radius, dmg, primary) {
     const s = this.stats;
     this.world.explosion(pos, radius, primary ? COLORS.green : COLORS.amber);
+    sfx.play(primary ? 'explosion' : 'bomblet');
     for (const e of this.enemies) {
       if (e.dead) continue;
       const dx = e.x - pos.x, dz = e.z - pos.z, rr = radius + e.radius * 0.5;
@@ -554,13 +574,16 @@ export class Game {
       const n = 1 + Math.floor(this.wave / 25);
       this.siphoned += n; this.save.cores += n;
       this.ui.floatText(e.x, e.y + 1.5, e.z, `+${n} ◈`, 'core');
+      sfx.play('core');
     }
+    sfx.play(e.boss ? 'bossDie' : e.elite || e.key === 'juggernaut' ? 'bigDie' : 'die');
     this.world.enemyDeath(e);
     this.releaseEnemy(e);
   }
 
   enemyAttack(e) {
     if (e.def.ranged) {
+      sfx.play('zap');
       this.world.lightning([new THREE.Vector3(e.x, e.y + 0.45, e.z), new THREE.Vector3(e.x * 0.25, 3, e.z * 0.25)], COLORS.red, 0.25, 0.15);
       this.damageTower(e.dmg, null);
     } else {

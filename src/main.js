@@ -6,6 +6,7 @@ import { TreeView } from './treeview.js';
 import { loadSave, writeSave, wipeSave, exportSave, parseSave } from './save.js';
 import { buyNode, respec } from './skilltree.js';
 import { fmt } from './util.js';
+import { sfx } from './audio.js';
 
 const $ = id => document.getElementById(id);
 
@@ -17,7 +18,8 @@ const game = new Game(world, ui, save);
 const tree = new TreeView($('tree-canvas'), $('tree-tip'), {
   getSave: () => save,
   onBuy: id => {
-    if (!buyNode(save, id)) return false;
+    if (!buyNode(save, id)) { sfx.play('deny'); return false; }
+    sfx.play('treeBuy');
     writeSave(save);
     game.refreshMeta();
     $('tree-cores').textContent = fmt(save.cores);
@@ -132,11 +134,13 @@ document.querySelectorAll('.buy-modes button').forEach(b => {
 $('shop-list').addEventListener('click', e => {
   const b = e.target.closest('.upg');
   if (!b) return;
-  if (game.buyShop(b.dataset.id, ui.mode) > 0) { ui.flashBought(b.dataset.id); ui.updateShop(game); }
+  if (game.buyShop(b.dataset.id, ui.mode) > 0) { sfx.play('buy'); ui.flashBought(b.dataset.id); ui.updateShop(game); }
+  else sfx.play('deny');
 });
 
 window.addEventListener('keydown', e => {
   if (e.repeat) return;
+  if (e.key === 'm' || e.key === 'M') { toggleMute(); return; }
   if (screen === 'play' && game.state === 'playing') {
     if (e.code === 'Space') { e.preventDefault(); setPaused(!game.paused); }
     else if (e.key === '1') setSpeed(1);
@@ -145,6 +149,26 @@ window.addEventListener('keydown', e => {
     else if (e.key === 'Escape') openEscMenu();
   } else if (screen === 'esc-menu' && e.key === 'Escape') closeEscMenu();
   else if (screen === 'tree' && e.key === 'Escape') setScreen(treeReturn);
+});
+
+// ── sound ──
+// Browsers only allow audio after a user gesture, so the context is created on first input.
+window.addEventListener('pointerdown', () => sfx.unlock(), true);
+window.addEventListener('keydown', () => sfx.unlock(), true);
+function renderMute() {
+  document.querySelectorAll('.btn-mute').forEach(b => {
+    b.classList.toggle('active', !sfx.muted);
+    if (b.classList.contains('small')) b.textContent = sfx.muted ? 'Sound: Off' : 'Sound: On';
+    else b.textContent = sfx.muted ? '🔇' : '🔊';
+  });
+}
+function toggleMute() { sfx.unlock(); sfx.setMuted(!sfx.muted); renderMute(); }
+document.querySelectorAll('.btn-mute').forEach(b => { b.onclick = toggleMute; });
+renderMute();
+// generic click blip for menu buttons (workshop buttons have their own sounds)
+document.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b && !b.classList.contains('upg') && !b.classList.contains('btn-mute')) sfx.play('click');
 });
 
 // ── main loop ──
@@ -163,6 +187,8 @@ function frame(now) {
       remaining -= d;
     }
   }
+  sfx.setLaser(active && !game.paused && game.laserActive === true, game.laserPitch || 0);
+  if (game.laserLocked) { game.laserLocked = false; sfx.laserLock(); }
   world.update(realDt, gdt, screen !== 'tree');
   ui.update(game, realDt);
   requestAnimationFrame(frame);

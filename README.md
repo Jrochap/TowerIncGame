@@ -41,7 +41,7 @@ python3 -m http.server 8000
 Each branch ends in a 400-core capstone.
 
 ### Controls
-`Space` pause · `1/2/3` 1×/2×/4× speed · `Esc` menu (self-destruct to bank cores) · drag to orbit · scroll to zoom
+`Space` pause · `1/2/3` 1×/2×/4× speed · `M` mute · `Esc` menu (self-destruct to bank cores) · drag to orbit · scroll to zoom
 
 ## Code map
 | File | Role |
@@ -51,6 +51,7 @@ Each branch ends in a 400-core capstone.
 | `src/stats.js` | folds tree and Workshop levels into final stats |
 | `src/game.js` | run simulation: waves, enemies, weapons, economy |
 | `src/world.js` | Three.js scene, tower model, city, pooled meshes, particles/effects, bloom |
+| `src/audio.js` | procedural Web Audio sound effects (no asset files) and mute setting |
 | `src/ui.js` | HUD, Workshop, floating numbers, end screens |
 | `src/treeview.js` | canvas renderer for the Skill Matrix |
 | `src/main.js` | bootstrap, screen flow, input, main loop |
