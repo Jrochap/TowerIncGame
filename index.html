@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tower Inc.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="game"></div>
+<div id="vignette"></div>
+<div id="dmg-layer"></div>
+<div id="banner"></div>
+<div id="toasts"></div>
+
+<!-- ===== In-run HUD ===== -->
+<div id="hud" class="hidden">
+  <div class="hud-left panel">
+    <div class="wave-box"><span class="label">WAVE</span><span id="wave-num">1</span></div>
+    <div class="bars">
+      <div class="bar hp"><div id="hp-fill" class="fill"></div><span id="hp-text"></span></div>
+      <div class="bar shield hidden" id="shield-bar"><div id="shield-fill" class="fill"></div><span id="shield-text"></span></div>
+      <div class="bar wave-prog"><div id="wave-fill" class="fill"></div></div>
+    </div>
+  </div>
+  <div id="boss-bar" class="hidden">
+    <div class="boss-name">⚠ LEVIATHAN-CLASS ENGINE</div>
+    <div class="bar"><div id="boss-fill" class="fill"></div></div>
+  </div>
+  <div class="hud-right panel">
+    <div class="res cogs" title="Cogs: spend in the Workshop during this run"><span class="ico">⚙</span><span id="cogs">0</span></div>
+    <div class="res cores" title="Aether Cores: permanent currency for the Skill Matrix"><span class="ico">◈</span><span id="cores">0</span></div>
+    <div class="res kills"><span class="ico">✕</span><span id="kills">0</span></div>
+    <div class="speed">
+      <button id="pause-btn" title="Pause (Space)">❚❚</button>
+      <button data-speed="1" class="active" title="1× (key 1)">1×</button>
+      <button data-speed="2" title="2× (key 2)">2×</button>
+      <button data-speed="4" title="4× (key 3)">4×</button>
+    </div>
+  </div>
+  <div id="pause-tag" class="hidden">PAUSED · press Space</div>
+</div>
+
+<div id="shop" class="panel hidden">
+  <div class="shop-head">WORKSHOP <small>upgrades reset each run</small></div>
+  <div id="stat-grid" class="stat-grid"></div>
+  <div class="tabs">
+    <button data-tab="atk" class="active">Attack</button>
+    <button data-tab="def">Defense</button>
+    <button data-tab="tech">Tech</button>
+    <button data-tab="util">Utility</button>
+  </div>
+  <div class="buy-modes">
+    <span>BUY</span>
+    <button data-mode="1" class="active">×1</button>
+    <button data-mode="10">×10</button>
+    <button data-mode="max">MAX</button>
+  </div>
+  <div id="shop-list"></div>
+</div>
+
+<!-- ===== Main menu ===== -->
+<div id="menu" class="screen">
+  <div class="menu-inner">
+    <div class="logo-gear">⚙</div>
+    <h1><span class="t1">TOWER</span><span class="t2">INC.</span></h1>
+    <p class="tag">Perpetual Defense Conglomerate · est. 2187</p>
+    <div id="menu-stats" class="menu-stats"></div>
+    <button id="btn-start" class="big">Begin Shift</button>
+    <button id="btn-tree-menu">Skill Matrix</button>
+    <div class="row">
+      <button id="btn-export" class="small">Export Save</button>
+      <button id="btn-import" class="small">Import Save</button>
+      <input id="import-file" type="file" accept=".txt,.json,text/plain,application/json" hidden>
+      <button id="btn-reset" class="small danger">Wipe Save</button>
+    </div>
+    <div class="help">Space pause · 1/2/3 game speed · Esc menu · drag to orbit · scroll to zoom</div>
+  </div>
+</div>
+
+<!-- ===== Death screen ===== -->
+<div id="death" class="screen hidden">
+  <div class="panel death-inner">
+    <h2>STRUCTURE OVERWHELMED</h2>
+    <div id="death-stats"></div>
+    <div class="row">
+      <button id="btn-tree-death" class="big">Skill Matrix</button>
+      <button id="btn-retry">Redeploy</button>
+      <button id="btn-menu">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Escape menu ===== -->
+<div id="esc-menu" class="screen hidden">
+  <div class="panel death-inner">
+    <h2>SHIFT PAUSED</h2>
+    <p class="muted">The gears hold. The horde waits.</p>
+    <div class="row">
+      <button id="btn-resume" class="big">Resume</button>
+      <button id="btn-abandon" class="danger">Self-Destruct &amp; bank cores</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Skill tree ===== -->
+<div id="tree" class="screen hidden">
+  <canvas id="tree-canvas"></canvas>
+  <div class="tree-top panel">
+    <div class="title">SKILL MATRIX</div>
+    <div class="res cores"><span class="ico">◈</span><span id="tree-cores">0</span></div>
+    <button id="btn-respec" class="small">Respec</button>
+    <button id="btn-tree-back">Back</button>
+    <button id="btn-tree-deploy" class="big">Deploy ▶</button>
+  </div>
+  <div id="tree-legend" class="tree-legend panel"></div>
+  <div id="tree-tip" class="panel hidden"></div>
+  <div class="tree-hint">Drag to pan · Scroll to zoom · Click a node to buy</div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
