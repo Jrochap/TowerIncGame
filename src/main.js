@@ -112,7 +112,7 @@ $('btn-reforge').onclick = () => {
 function startRun(challengeId = null) {
   ui.clearNums();
   game.startRun(typeof challengeId === 'string' ? challengeId : null);
-  setSpeed(1);
+  setSpeed(lastSpeed); // keep the speed from the previous shift (survives Reforges and reloads)
   setScreen('play');
   ui.renderShop(game);
   if (game.challenge) ui.banner(`CHALLENGE · ${game.challenge.name.toUpperCase()}`, game.challenge.rule, true);
@@ -124,8 +124,14 @@ function setPaused(p) {
   $('pause-btn').classList.toggle('active', p);
 }
 
+// Last chosen game speed, remembered per browser like the mute setting.
+const SPEED_KEY = 'towerinc.speed';
+let lastSpeed = 1;
+try { const v = Number(localStorage.getItem(SPEED_KEY)); if ([1, 2, 4].includes(v)) lastSpeed = v; } catch (e) { /* storage unavailable */ }
+
 function setSpeed(v) {
   game.speed = v;
+  if (v !== lastSpeed) { lastSpeed = v; try { localStorage.setItem(SPEED_KEY, String(v)); } catch (e) { /* ignore */ } }
   document.querySelectorAll('.speed [data-speed]').forEach(b => b.classList.toggle('active', Number(b.dataset.speed) === v));
   setPaused(false);
 }
