@@ -6,12 +6,20 @@ import {
 } from './config.js';
 import { computeStats } from './stats.js';
 import { writeSave } from './save.js';
+import { startWaveFor, blueprintsFor } from './foundry.js';
 import { COLORS } from './world.js';
 import { fmt } from './util.js';
 import { sfx } from './audio.js';
 
 const _v = new THREE.Vector3();
 const MAX_ALIVE = 260;
+
+// Approximate cogs a run earns from waves 1..n (kills ~2 cogs avg + wave bounty + boss), before cogMult.
+function skippedCogs(n) {
+  let c = 0;
+  for (let w = 1; w <= n; w++) c += waveCount(w) * 2 * waveCogMult(w) + 6 + w * 2 + (w % 10 === 0 ? 80 * waveCogMult(w) : 0);
+  return c * 0.8;
+}
 
 export class Game {
   constructor(world, ui, save) {
@@ -28,32 +36,41 @@ export class Game {
   // Stats outside a run (menu / skill tree): tree only, so the tower model shows unlocked modules.
   refreshMeta() {
     if (this.state === 'playing') return;
-    this.stats = computeStats(this.save.tree, {});
+    this.stats = computeStats(this.save.tree, {}, this.save.foundry);
     this.world.applyModules(this.stats);
   }
 
   startRun() {
     this.clearEntities();
     this.world.resetTower();
-    const base = computeStats(this.save.tree, {});
+    const base = computeStats(this.save.tree, {}, this.save.foundry);
     this.shop = {};
-    if (base.blueprint > 0) for (const id of ['dmg', 'rate', 'hp', 'regen']) this.shop[id] = base.blueprint;
+    if (base.kitLevel > 0) for (const u of SHOP) if (!u.req || base[u.req]) this.shop[u.id] = Math.min(u.max ?? Infinity, base.kitLevel);
+    if (base.blueprint > 0) for (const id of ['dmg', 'rate', 'hp', 'regen']) this.shop[id] = (this.shop[id] || 0) + base.blueprint;
     this.stats = null;
     this.recompute();
     this.hp = this.stats.maxHp;
     this.shield = this.stats.shieldMax;
     this.cogs = this.stats.startCogs;
+    this.siege = 0; this.siegeWarned = false;
     this.wave = 0; this.kills = 0; this.bossKills = 0; this.siphoned = 0;
     this.time = 0; this.lastHit = -99; this.lastStandUsed = false;
     this.fireTimer = 0; this.teslaTimer = 0; this.novaTimer = 2; this.missileTimer = 0.5;
     this.muzzleSide = 0; this.podSide = 0; this.laserState = []; this.autoT = 1;
     this.spawnQueue = []; this.waveTimer = 0; this.waveDur = 1; this.breakTimer = 1.5; this.inWave = false;
+    // Express Elevator: skip ahead, paid roughly what those waves would have earned
+    const sw = startWaveFor(this.save);
+    if (sw > 1) {
+      this.wave = sw - 1;
+      this.cogs += skippedCogs(sw - 1) * this.stats.cogMult;
+    }
+    this.startWave = Math.max(1, sw);
     this.state = 'playing'; this.paused = false;
   }
 
   recompute() {
     const prev = this.stats;
-    this.stats = computeStats(this.save.tree, this.shop);
+    this.stats = computeStats(this.save.tree, this.shop, this.save.foundry);
     if (prev) {
       if (this.stats.maxHp > prev.maxHp) this.hp += this.stats.maxHp - prev.maxHp;
       this.hp = Math.min(this.hp, this.stats.maxHp);
@@ -175,7 +192,14 @@ export class Game {
       return;
     }
     // Spawning stalls while the field is saturated, which keeps the entity count (and frame rate) sane.
-    if (this.enemies.length < MAX_ALIVE) this.waveTimer += dt;
+    // Saturation builds siege pressure (enemies hit harder) so a tower that can't clear still falls.
+    if (this.enemies.length < MAX_ALIVE) {
+      this.waveTimer += dt;
+      this.siege = Math.max(0, this.siege - dt * 0.25);
+    } else {
+      this.siege += dt * 0.08;
+      if (this.siege > 0.5 && !this.siegeWarned) { this.siegeWarned = true; this.ui.toast('⚠ The horde is massing: siege pressure rising'); }
+    }
     while (this.spawnQueue.length && this.spawnQueue[0].t <= this.waveTimer) this.spawnGroup(this.spawnQueue.shift());
     // A wave ends when it's cleared, or 12s after the last spawn regardless — that's how the horde snowballs.
     if (this.spawnQueue.length === 0 && (this.enemies.length === 0 || this.waveTimer > this.waveDur + 12)) this.completeWave();
@@ -184,7 +208,7 @@ export class Game {
   beginWave() {
     this.wave++;
     const w = this.wave;
-    this.inWave = true; this.waveTimer = 0;
+    this.inWave = true; this.waveTimer = 0; this.siegeWarned = false;
     const count = waveCount(w);
     const dur = spawnDuration(w) * (1 - this.stats.waveSpeed);
     this.waveDur = dur;
@@ -238,7 +262,7 @@ export class Game {
       dmg: def.dmg * waveDmgMult(w) * (elite ? 2 : 1),
       radius: def.radius * scale,
       attacking: false, atkTimer: Math.random() * 0.5,
-      stunT: 0, shredT: 0, burnT: 0, burnDps: 0, kx: 0, kz: 0, flash: 0,
+      stunT: 0, stunImm: 0, shredT: 0, knockCd: 0, burnT: 0, burnDps: 0, kx: 0, kz: 0, flash: 0,
       wobble: Math.random() * 10, dead: false, d2: 0,
     };
     if (def.bar || elite) {
@@ -305,7 +329,7 @@ export class Game {
     this.save.runs++;
     this.save.totalKills += this.kills;
     writeSave(this.save);
-    this.deathInfo = { wave: this.wave, kills: this.kills, bosses: this.bossKills, earned, siphoned: this.siphoned, newBest: this.wave > prevBest, time: this.time };
+    this.deathInfo = { reforgeBp: blueprintsFor(this.save), wave: this.wave, kills: this.kills, bosses: this.bossKills, earned, siphoned: this.siphoned, newBest: this.wave > prevBest, time: this.time };
     this.world.towerDestroyed();
     sfx.play('destroyed');
     this.laserActive = false;
@@ -364,7 +388,7 @@ export class Game {
             for (let c = 0; c <= s.teslaChains && cur; c++) {
               hit.add(cur);
               pts.push(new THREE.Vector3(cur.x, cur.y, cur.z));
-              if (s.teslaStun > 0 && !cur.boss) cur.stunT = Math.max(cur.stunT, s.teslaStun);
+              if (s.teslaStun > 0 && !cur.boss && !(cur.stunImm > 0)) { cur.stunT = Math.max(cur.stunT, s.teslaStun); cur.stunImm = s.teslaStun + 1.5; } // brief immunity after each stun: no permanent lock
               if (s.teslaShred > 0) cur.shredT = 3;
               this.damageEnemy(cur, dmg, { kind: 'volt' });
               dmg *= 0.85;
@@ -388,8 +412,9 @@ export class Game {
           sfx.play('nova');
           for (const e of cands) {
             this.damageEnemy(e, s.novaDamage, { kind: 'volt' });
-            const d = Math.sqrt(e.d2) || 1, k = s.novaKnock * (e.boss ? 0.15 : e.elite ? 0.5 : 1) * 4;
-            e.kx += e.x / d * k; e.kz += e.z / d * k;
+            if (e.knockCd > 0) continue; // shares the shell knockback cooldown
+            const d = Math.sqrt(e.d2) || 1, k = Math.min(8, s.novaKnock * 4) * (e.boss ? 0.15 : e.elite ? 0.5 : 1);
+            e.kx += e.x / d * k; e.kz += e.z / d * k; e.knockCd = 1.5;
           }
         } else this.novaTimer = 0;
       }
@@ -469,9 +494,11 @@ export class Game {
       if (dist <= step + t.radius * 0.6) {
         pos.set(t.x, t.y, t.z);
         this.damageEnemy(t, p.dmg, { crit: p.crit });
-        if (s.knockback > 0 && !t.boss) {
-          const d = Math.hypot(t.x, t.z) || 1, k = s.knockback * 5 * (t.elite ? 0.4 : 1);
-          t.kx += t.x / d * k; t.kz += t.z / d * k;
+        // Shell knockback: one shove per enemy every 1.5s, capped (~1.2m), so a fast-firing cannon
+        // can't pin the whole horde at the spawn ring forever.
+        if (s.knockback > 0 && !t.boss && !(t.knockCd > 0)) {
+          const d = Math.hypot(t.x, t.z) || 1, k = Math.min(6, s.knockback * 5) * (t.elite ? 0.4 : 1);
+          t.kx += t.x / d * k; t.kz += t.z / d * k; t.knockCd = 1.5;
         }
         this.world.burst(pos, p.crit ? 8 : 3, p.crit ? COLORS.red : COLORS.amber, 5, 0.25, 8);
         p.hit.add(t);
@@ -613,9 +640,9 @@ export class Game {
     if (e.def.ranged) {
       sfx.play('zap');
       this.world.lightning([new THREE.Vector3(e.x, e.y + 0.45, e.z), new THREE.Vector3(e.x * 0.25, 3, e.z * 0.25)], COLORS.red, 0.25, 0.15);
-      this.damageTower(e.dmg, null);
+      this.damageTower(e.dmg * (1 + this.siege), null);
     } else {
-      this.damageTower(e.dmg, e);
+      this.damageTower(e.dmg * (1 + this.siege), e);
       this.world.sparks.emit(e.x * 0.85, e.y, e.z * 0.85, (Math.random() - 0.5) * 4, 3, (Math.random() - 0.5) * 4, COLORS.amber, 0.3, 8);
     }
   }
@@ -627,6 +654,8 @@ export class Game {
       const def = e.def;
       if (e.stunT > 0) e.stunT -= dt;
       if (e.shredT > 0) e.shredT -= dt;
+      if (e.knockCd > 0) e.knockCd -= dt;
+      if (e.stunImm > 0) e.stunImm -= dt;
       if (e.burnT > 0) {
         e.burnT -= dt;
         this.damageEnemy(e, e.burnDps * dt, { silent: true });
@@ -644,7 +673,9 @@ export class Game {
       if (s.slowAura > 0 && dist < s.slowRadius + e.radius) sp *= 1 - s.slowAura;
       if (e.stunT > 0 || frozen) sp = 0;
 
-      if (dist > stop) {
+      // small tolerance: stepping exactly (dist - stop) while wobbling sideways can leave an enemy a
+      // floating-point hair outside its stop distance forever, so it would never start attacking
+      if (dist > stop + 0.05) {
         e.attacking = false;
         const nx = -e.x / dist, nz = -e.z / dist;
         const wob = Math.sin(this.time * 1.7 + e.wobble) * (def.flying ? 0.7 : 0.3);

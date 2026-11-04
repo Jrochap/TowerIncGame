@@ -7,23 +7,24 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=202611041403">
+<link rel="stylesheet" href="style.css?v=202611041453">
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-    "./src/audio.js": "./src/audio.js?v=202611041403",
-    "./src/config.js": "./src/config.js?v=202611041403",
-    "./src/game.js": "./src/game.js?v=202611041403",
-    "./src/main.js": "./src/main.js?v=202611041403",
-    "./src/save.js": "./src/save.js?v=202611041403",
-    "./src/skilltree.js": "./src/skilltree.js?v=202611041403",
-    "./src/stats.js": "./src/stats.js?v=202611041403",
-    "./src/treeview.js": "./src/treeview.js?v=202611041403",
-    "./src/ui.js": "./src/ui.js?v=202611041403",
-    "./src/util.js": "./src/util.js?v=202611041403",
-    "./src/world.js": "./src/world.js?v=202611041403"
+    "./src/audio.js": "./src/audio.js?v=202611041453",
+    "./src/config.js": "./src/config.js?v=202611041453",
+    "./src/foundry.js": "./src/foundry.js?v=202611041453",
+    "./src/game.js": "./src/game.js?v=202611041453",
+    "./src/main.js": "./src/main.js?v=202611041453",
+    "./src/save.js": "./src/save.js?v=202611041453",
+    "./src/skilltree.js": "./src/skilltree.js?v=202611041453",
+    "./src/stats.js": "./src/stats.js?v=202611041453",
+    "./src/treeview.js": "./src/treeview.js?v=202611041453",
+    "./src/ui.js": "./src/ui.js?v=202611041453",
+    "./src/util.js": "./src/util.js?v=202611041453",
+    "./src/world.js": "./src/world.js?v=202611041453"
   }
 }
 </script>
@@ -98,6 +99,7 @@
     <div id="menu-stats" class="menu-stats"></div>
     <button id="btn-start" class="big">Begin Shift</button>
     <button id="btn-tree-menu">Skill Matrix</button>
+    <button id="btn-foundry-menu" class="foundry-btn hidden">The Foundry</button>
     <div class="row">
       <button class="btn-mute small" title="Toggle sound (M)">Sound</button>
       <button id="btn-export" class="small">Export Save</button>
@@ -116,6 +118,7 @@
     <div id="death-stats"></div>
     <div class="row">
       <button id="btn-tree-death" class="big">Skill Matrix</button>
+      <button id="btn-foundry-death" class="foundry-btn hidden">The Foundry</button>
       <button id="btn-retry">Redeploy</button>
       <button id="btn-menu">Main Menu</button>
     </div>
@@ -134,6 +137,27 @@
   </div>
 </div>
 
+<!-- ===== Foundry (prestige) ===== -->
+<div id="foundry" class="screen hidden">
+  <div class="foundry-wrap">
+    <div class="foundry-top panel">
+      <div class="title">THE FOUNDRY</div>
+      <div class="res bp"><span class="ico">✎</span><span id="f-bp">0</span></div>
+      <button id="btn-foundry-back">Back</button>
+    </div>
+    <div class="reforge panel">
+      <div class="rf-text">
+        <div class="rf-title">REFORGE</div>
+        <div class="rf-sub">Melt the tower down to its foundations: <b>Aether cores, the Skill Matrix (with Overclocks) and your best wave reset.</b>
+          Foundry upgrades, Blueprints and lifetime records stay.</div>
+        <div id="rf-info" class="rf-info"></div>
+      </div>
+      <button id="btn-reforge" class="big danger-big">Reforge</button>
+    </div>
+    <div id="foundry-groups" class="foundry-groups"></div>
+  </div>
+</div>
+
 <!-- ===== Skill tree ===== -->
 <div id="tree" class="screen hidden">
   <canvas id="tree-canvas"></canvas>
@@ -149,6 +173,6 @@
   <div class="tree-hint">Drag to pan · Scroll to zoom · Click a node to buy</div>
 </div>
 
-<script type="module" src="src/main.js?v=202611041403"></script>
+<script type="module" src="src/main.js?v=202611041453"></script>
 </body>
 </html>

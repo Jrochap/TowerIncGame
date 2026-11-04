@@ -78,7 +78,7 @@ N('eco_cores',    'eco', 3, -1,   'Aether Distillery',   15, 4,  ['eco_start'], 
 N('eco_interest', 'eco', 3, 0,    'Compound Interest',   10, 5,  ['eco_start', 'eco_wave'], addPct('interest', 0.01, 'interest on banked cogs per wave'), { icon: '%' });
 N('eco_disc',     'eco', 3, 1,    'Union Contracts',     10, 4,  ['eco_wave'], addPct('shopDiscount', 0.03, 'workshop discount'), { icon: '✂' });
 N('eco_siphon',   'eco', 4, -1.2, 'Core Siphon',         10, 10, ['eco_cores'], addPct('coreSiphon', 0.004, 'chance per kill to siphon a core'), { icon: '⟁' });
-N('eco_blue',     'eco', 4, 0,    'Blueprint Archive',   5,  30, ['eco_interest'], add('blueprint', 1, 'starting level in Damage, Fire Rate, Hull, Regen'), { icon: '✎', g: 2 });
+N('eco_blue',     'eco', 4, 0,    'Schematic Archive',   5,  30, ['eco_interest'], add('blueprint', 1, 'starting level in Damage, Fire Rate, Hull, Regen'), { icon: '✎', g: 2 });
 N('eco_bounty',   'eco', 4, 1.2,  'Bounty Hunter',       10, 8,  ['eco_disc'], addPct('bossBounty', 0.25, 'cogs from elites & bosses'), { icon: '$' });
 N('eco_turbine',  'eco', 5, -1.4, 'Steam Turbines',      10, 15, ['eco_siphon'], add('passiveCogs', 1, 'cogs/s passive income (scales with wave)'), { icon: '≋', g: 1.4 });
 N('eco_clerk',    'eco', 4.5, 0.6, 'Clockwork Clerk',    5,  40, ['eco_blue'],
@@ -172,13 +172,21 @@ for (const n of NODES) {
 // ── Overclock: maxed multi-level nodes keep levelling past their max at a much steeper price.
 // Overclock levels are stored as tree levels above n.max, so stats/respec handle them for free.
 // Excluded: one-off unlocks/capstones and nodes whose effect is a whole-number count.
-const NO_OC = new Set(['off_proj', 'off_pierce', 'eco_blue', 'volt_chain', 'volt_twin', 'ord_mcount', 'ord_cluster', 'ord_lcount']);
+const NO_OC = new Set(['off_knock', 'volt_stun', 'volt_gale', 'off_proj', 'off_pierce', 'eco_blue', 'volt_chain', 'volt_twin', 'ord_mcount', 'ord_cluster', 'ord_lcount']);
 for (const n of NODES) n.oc = n.max > 1 && !NO_OC.has(n.id);
 const OC_STEEP = 0.3; // extra growth per overclock level on top of the node's own curve
 
-export const nodeCost = (n, lvl) => lvl < n.max
-  ? Math.ceil(n.cost * Math.pow(n.g, lvl))
-  : Math.ceil(n.cost * Math.pow(n.g, n.max) * Math.pow(n.g + OC_STEEP, lvl - n.max));
+// Foundry price modifiers (set by syncFoundry): global multiplier, capstone multiplier, free leading levels.
+const mods = { mult: 1, capMult: 1, free: 0 };
+export function setTreeMods(m) { Object.assign(mods, m); }
+
+export function nodeCost(n, lvl) {
+  if (n.max > 1 && !n.cap && lvl < mods.free) return 0;
+  const raw = lvl < n.max
+    ? n.cost * Math.pow(n.g, lvl)
+    : n.cost * Math.pow(n.g, n.max) * Math.pow(n.g + OC_STEEP, lvl - n.max);
+  return Math.ceil(raw * mods.mult * (n.cap ? mods.capMult : 1));
+}
 export const ocLevel = (n, tree) => Math.max(0, (tree[n.id] || 0) - n.max);
 export const canOverclock = (n, tree) => n.oc && (tree[n.id] || 0) >= n.max;
 export const nodeAvailable = (n, tree) => n.req.length === 0 || n.req.some(id => (tree[id] || 0) > 0);

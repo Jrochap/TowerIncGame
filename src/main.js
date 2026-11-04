@@ -5,12 +5,14 @@ import { Game } from './game.js';
 import { TreeView } from './treeview.js';
 import { loadSave, writeSave, wipeSave, exportSave, parseSave } from './save.js';
 import { buyNode, respec } from './skilltree.js';
+import { syncFoundry, buyFoundry, reforge, blueprintsFor, BP_MIN_WAVE } from './foundry.js';
 import { fmt } from './util.js';
 import { sfx } from './audio.js';
 
 const $ = id => document.getElementById(id);
 
 const save = loadSave();
+syncFoundry(save);
 const world = new World($('game'));
 const ui = new UI(world);
 const game = new Game(world, ui, save);
@@ -32,14 +34,40 @@ let treeReturn = 'menu';
 
 function setScreen(name) {
   screen = name;
-  for (const id of ['menu', 'death', 'tree', 'esc-menu']) $(id).classList.toggle('hidden', id !== name);
+  for (const id of ['menu', 'death', 'tree', 'esc-menu', 'foundry']) $(id).classList.toggle('hidden', id !== name);
   const playing = name === 'play' || name === 'esc-menu';
   $('hud').classList.toggle('hidden', !playing);
   $('shop').classList.toggle('hidden', !playing);
   world.controls.autoRotate = name === 'menu';
   if (name === 'tree') { tree.open(); $('tree-cores').textContent = fmt(save.cores); } else tree.close();
   if (name === 'menu') ui.renderMenu(save);
+  if (name === 'foundry') ui.renderFoundry(save);
+  const showFoundry = save.reforges > 0 || save.blueprints > 0 || save.bestWave >= BP_MIN_WAVE;
+  for (const id of ['btn-foundry-menu', 'btn-foundry-death']) $(id).classList.toggle('hidden', !showFoundry);
 }
+
+let foundryReturn = 'menu';
+$('btn-foundry-menu').onclick = () => { foundryReturn = 'menu'; setScreen('foundry'); };
+$('btn-foundry-death').onclick = () => { foundryReturn = 'death'; setScreen('foundry'); };
+$('btn-foundry-back').onclick = () => setScreen(foundryReturn);
+$('foundry-groups').addEventListener('click', e => {
+  const b = e.target.closest('.f-node');
+  if (!b) return;
+  if (!buyFoundry(save, b.dataset.id)) { sfx.play('deny'); return; }
+  sfx.play('treeBuy'); writeSave(save); game.refreshMeta();
+  ui.renderFoundry(save); ui.popFoundry(b.dataset.id);
+});
+$('btn-reforge').onclick = () => {
+  const bp = blueprintsFor(save);
+  if (bp <= 0) return;
+  if (!confirm(`Reforge for +${fmt(bp)} Blueprints?\n\nThis resets your Aether cores, the entire Skill Matrix (including Overclocks) and your best wave. Foundry upgrades and Blueprints are kept.`)) return;
+  reforge(save); writeSave(save); game.refreshMeta();
+  sfx.play('lastStand');
+  // a reforge always lands you back on the main menu, since a death screen from the old cycle is stale
+  foundryReturn = 'menu';
+  ui.renderFoundry(save);
+  ui.toast(`Reforged · +${fmt(bp)} ✎ Blueprints`);
+};
 
 function startRun() {
   ui.clearNums();
@@ -89,7 +117,7 @@ $('btn-resume').onclick = closeEscMenu;
 $('btn-abandon').onclick = () => { setScreen('play'); setPaused(false); game.selfDestruct(); };
 $('btn-respec').onclick = () => {
   if (!confirm('Refund every Skill Matrix node for its full core cost?')) return;
-  respec(save); writeSave(save); game.refreshMeta();
+  respec(save); syncFoundry(save); writeSave(save); game.refreshMeta();
   $('tree-cores').textContent = fmt(save.cores);
 };
 document.querySelectorAll('[data-auto-mode]').forEach(b => {
@@ -158,6 +186,7 @@ window.addEventListener('keydown', e => {
     else if (e.key === 'Escape') openEscMenu();
   } else if (screen === 'esc-menu' && e.key === 'Escape') closeEscMenu();
   else if (screen === 'tree' && e.key === 'Escape') setScreen(treeReturn);
+  else if (screen === 'foundry' && e.key === 'Escape') setScreen(foundryReturn);
 });
 
 // ── sound ──

@@ -31,6 +31,7 @@ export const BASE_STATS = {
   cogMult: 1, startCogs: 0, waveBounty: 0, interest: 0, shopDiscount: 0,
   coreMult: 1, blueprint: 0, coreSiphon: 0, bossBounty: 0, passiveCogs: 0, waveSpeed: 0,
   autoBuy: 0,  // Clockwork Clerk level
+  kitLevel: 0, // Foundry: starting level of every Workshop upgrade
 };
 
 // y = hover height of the mesh origin. bar = show a floating health bar.

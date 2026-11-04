@@ -2,6 +2,7 @@
 import { SHOP } from './config.js';
 import { NODES } from './skilltree.js';
 import { fmt } from './util.js';
+import { FOUNDRY, FOUNDRY_GROUPS, foundryCost, blueprintsFor, startWaveFor, BP_MIN_WAVE } from './foundry.js';
 
 const $ = id => document.getElementById(id);
 
@@ -191,12 +192,52 @@ export class UI {
   // ───────────────────────────── screens ─────────────────────────────
   renderMenu(save) {
     const owned = NODES.filter(n => n.id !== 'core' && (save.tree[n.id] || 0) > 0).length;
+    const pres = save.reforges > 0 || save.blueprints > 0;
     $('menu-stats').innerHTML = `
       <div>Best wave<b>${save.bestWave}</b></div>
+      ${pres ? `<div>Best ever<b>${save.bestEver}</b></div>` : ''}
       <div>Aether cores<b style="color:var(--cyan)">${fmt(save.cores)} ◈</b></div>
+      ${pres ? `<div>Blueprints<b style="color:var(--bp)">${fmt(save.blueprints)} ✎</b></div>` : ''}
       <div>Matrix nodes<b>${owned}/${NODES.length - 1}</b></div>
+      ${pres ? `<div>Reforges<b>${save.reforges}</b></div>` : ''}
       <div>Shifts worked<b>${save.runs}</b></div>`;
-    $('btn-start').textContent = save.runs ? 'Begin Shift' : 'Begin First Shift';
+    const sw = startWaveFor(save);
+    $('btn-start').textContent = !save.runs ? 'Begin First Shift' : sw > 1 ? `Begin Shift · Wave ${sw}` : 'Begin Shift';
+  }
+
+  // ───────────────────────────── foundry ─────────────────────────────
+  renderFoundry(save) {
+    $('f-bp').textContent = fmt(save.blueprints);
+    const bp = blueprintsFor(save);
+    $('rf-info').innerHTML = bp > 0
+      ? `Best wave this cycle <b>${save.bestWave}</b> → Reforge now for <b>+${fmt(bp)} ✎</b>`
+      : `<span class="no">Reach wave ${BP_MIN_WAVE} or deeper to earn Blueprints (best this cycle: ${save.bestWave}).</span>`;
+    $('btn-reforge').disabled = bp <= 0;
+    const wrap = $('foundry-groups');
+    wrap.innerHTML = '';
+    for (const g of FOUNDRY_GROUPS) {
+      const col = document.createElement('div');
+      col.className = 'f-group panel';
+      col.innerHTML = `<h3 style="color:${g.color}">${g.name}</h3>`;
+      for (const f of FOUNDRY.filter(x => x.group === g.id)) {
+        const lvl = save.foundry[f.id] || 0, maxed = lvl >= f.max, cost = foundryCost(f, lvl);
+        const b = document.createElement('button');
+        b.className = 'f-node' + (maxed ? ' maxed' : save.blueprints >= cost ? ' afford' : '');
+        b.dataset.id = f.id; b.style.setProperty('--gc', g.color);
+        b.innerHTML = `<span class="f-ico">${f.icon}︎</span>
+          <span class="f-name">${f.name}<span class="f-lvl">${lvl}/${f.max}</span></span>
+          <span class="f-eff">${lvl ? f.eff(lvl) : '—'}${maxed ? '' : ` <i>→ ${f.eff(lvl + 1)}</i>`}</span>
+          ${f.desc ? `<span class="f-desc">${f.desc}</span>` : ''}
+          <span class="f-cost">${maxed ? 'MAXED' : `✎ ${fmt(cost)}`}</span>`;
+        col.appendChild(b);
+      }
+      wrap.appendChild(col);
+    }
+  }
+
+  popFoundry(id) {
+    const b = document.querySelector(`.f-node[data-id="${id}"]`);
+    if (b) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
   }
 
   renderDeath(info) {
@@ -207,6 +248,7 @@ export class UI {
       <div class="ds-row"><span>Leviathans felled</span><b>${info.bosses}</b></div>
       <div class="ds-row"><span>Shift length</span><b>${m}:${String(s).padStart(2, '0')}</b></div>
       ${info.siphoned ? `<div class="ds-row"><span>Cores siphoned mid-shift</span><b>+${fmt(info.siphoned)} ◈</b></div>` : ''}
-      <div class="ds-row big"><span>Aether cores extracted</span><b>+${fmt(info.earned)} ◈</b></div>`;
+      <div class="ds-row big"><span>Aether cores extracted</span><b>+${fmt(info.earned)} ◈</b></div>
+      ${info.reforgeBp > 0 ? `<div class="ds-row"><span>Reforge value (The Foundry)</span><b style="color:var(--bp)">${fmt(info.reforgeBp)} ✎</b></div>` : ''}`;
   }
 }

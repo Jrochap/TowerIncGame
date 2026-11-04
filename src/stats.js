@@ -1,13 +1,15 @@
 import { BASE_STATS, SHOP } from './config.js';
 import { NODES } from './skilltree.js';
+import { applyFoundry } from './foundry.js';
 
-// Folds skill tree levels and workshop levels into a final, ready-to-use stat block.
-export function computeStats(tree, shop = {}) {
+// Folds skill tree, Foundry and workshop levels into a final, ready-to-use stat block.
+export function computeStats(tree, shop = {}, foundry = {}) {
   const s = { ...BASE_STATS };
   for (const n of NODES) {
     const l = tree[n.id] || 0;
     if (l > 0) n.apply(s, l);
   }
+  applyFoundry(s, foundry);
   for (const u of SHOP) {
     const l = shop[u.id] || 0;
     if (l > 0 && (!u.req || s[u.req])) u.apply(s, l);

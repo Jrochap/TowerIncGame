@@ -46,6 +46,21 @@ Once a node is maxed you can keep buying **Overclock** levels past its cap at a 
 One-off unlocks, capstones, and nodes that add whole counts (projectiles, pierce, missiles, beams)
 can't be overclocked. Respec refunds overclocks too.
 
+### The Foundry (prestige)
+Once your best wave reaches 41, **Reforge** unlocks in the Foundry (main menu or death screen). It
+resets your Aether cores, the whole Skill Matrix (including Overclocks) and your best wave. In return
+you get **Blueprints ✎**, which grow with how deep you pushed. Blueprints buy permanent Foundry upgrades
+in three groups:
+
+- **Acceleration:** more cores and cogs, more Blueprints, a later starting wave (never deeper than
+  half your best wave this cycle), and Workshop upgrades that start pre-levelled.
+- **Reconstruction:** cheaper Skill Matrix nodes and capstones, free starting levels on every node,
+  starting cores after each Reforge, and a Clockwork Clerk that is always on at full speed.
+- **Hardening:** compounding damage and HP multipliers, plus weapon rate.
+
+If the field fills up (260 enemies) and the tower can't clear it, **siege pressure** builds and
+enemies hit harder until the crowd thins, so a stalled run always ends.
+
 ### Controls
 `Space` pause · `1/2/3` 1×/2×/4× speed · `M` mute · `Esc` menu (self-destruct to bank cores) · drag to orbit · scroll to zoom
 
@@ -53,7 +68,8 @@ can't be overclocked. Respec refunds overclocks too.
 | File | Role |
 |---|---|
 | `src/config.js` | base stats, enemy types, wave scaling curves, Workshop upgrades |
-| `src/skilltree.js` | Skill Matrix nodes, layout, buy/respec |
+| `src/skilltree.js` | Skill Matrix nodes, layout, buy/respec, Overclock pricing |
+| `src/foundry.js` | Foundry upgrades, Blueprint formula, Reforge |
 | `src/stats.js` | folds tree and Workshop levels into final stats |
 | `src/game.js` | run simulation: waves, enemies, weapons, economy |
 | `src/world.js` | Three.js scene, tower model, city, pooled meshes, particles/effects, bloom |
