@@ -26,7 +26,11 @@ python3 -m http.server 8000
   permanent.
 - If a wave isn't cleared within ~12s of its last spawn, the next wave starts anyway. Fall behind
   and the horde snowballs.
-- Every 10th wave brings a **Leviathan** boss. From wave 6, gold-haloed **elites** start showing up.
+- Every 10th wave brings a boss, alternating between two kinds:
+  - **Leviathan** (waves 10, 30, 50…) charges the tower. It tests your single-target damage.
+  - **Dreadnought** (waves 20, 40, 60…) parks at 27m, lobs heavy artillery shells and launches flying
+    escorts. It tests your range and your defenses.
+- From wave 6, gold-haloed **elites** start showing up.
 
 ### Skill Matrix branches
 | Branch | Focus |

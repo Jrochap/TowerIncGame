@@ -155,7 +155,10 @@ export class UI {
 
   hurt(frac) { this.hurtV = Math.min(0.8, this.hurtV + 0.06 + frac * 3); }
 
-  showBoss(e) { this.boss = e; this.bossBar.classList.remove('hidden'); }
+  showBoss(e) {
+    this.boss = e; this.bossBar.classList.remove('hidden');
+    this.bossBar.querySelector('.boss-name').textContent = `⚠ ${e.def.title || e.def.name}`;
+  }
   hideBoss() { this.boss = null; this.bossBar.classList.add('hidden'); }
 
   setPaused(p) { this.pauseTag.classList.toggle('hidden', !p); }

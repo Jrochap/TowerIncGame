@@ -27,7 +27,7 @@ export class Game {
     this.world = world; this.ui = ui; this.save = save;
     this.state = 'menu';            // menu | playing | dying | dead
     this.speed = 1; this.paused = false;
-    this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = []; this.drones = [];
+    this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = []; this.drones = []; this.shells = [];
     this.sorted = [];
     this.shop = {}; this.hz = {}; this.challenge = null; this.nextChallenge = null;
     this.onDeath = null;
@@ -92,7 +92,8 @@ export class Game {
     for (const m of this.missiles) this.world.releaseMissile(m.mesh);
     this.enemies = []; this.projectiles = []; this.missiles = []; this.delayed = []; this.sorted = [];
     for (const d of this.drones) this.world.releaseDrone(d.mesh);
-    this.drones = [];
+    for (const sh of this.shells) this.world.releaseProjectile(sh.mesh);
+    this.drones = []; this.shells = [];
     this.world.hideBeams();
     this.laserActive = false;
     this.ui.hideBoss();
@@ -177,6 +178,7 @@ export class Game {
       this.updateProjectiles(dt);
       this.updateMissiles(dt);
       this.updateDrones(dt);
+      this.updateShells(dt);
       this.updateDelayed(dt);
       this.updateAutoBuy(dt);
       this.enemies = this.enemies.filter(e => !e.dead);
@@ -231,12 +233,14 @@ export class Game {
       q.push({ key, n, t: (i / count) * dur + Math.random() * 0.4 });
       i += n;
     }
-    const bossWave = w % (this.stats.bossEvery || 10) === 0;
-    if (bossWave) q.push({ key: 'boss', n: 1, t: dur * 0.35 });
+    const every = this.stats.bossEvery || 10, bossWave = w % every === 0;
+    // bosses alternate: Leviathan on odd boss waves (10, 30, 50…), Dreadnought on even ones (20, 40…)
+    const bossKey = (w / every) % 2 === 1 ? 'boss' : 'dread';
+    if (bossWave) q.push({ key: bossKey, n: 1, t: dur * 0.35 });
     q.sort((a, b) => a.t - b.t);
     this.spawnQueue = q;
     sfx.play(bossWave ? 'bossAlarm' : 'wave');
-    this.ui.banner(`WAVE ${w}`, bossWave ? '⚠ LEVIATHAN SIGNATURE DETECTED' : w === 1 ? 'Hold the line, engineer.' : '', bossWave);
+    this.ui.banner(`WAVE ${w}`, bossWave ? `⚠ ${ENEMY_TYPES[bossKey].alert}` : w === 1 ? 'Hold the line, engineer.' : '', bossWave);
   }
 
   completeWave() {
@@ -267,7 +271,7 @@ export class Game {
 
   spawnEnemy(key, angle, extraR = 0, at = null) {
     const def = ENEMY_TYPES[key], w = this.wave, hz = this.hz;
-    const boss = key === 'boss';
+    const boss = !!def.boss;
     const elite = !at && !boss && w >= 6 && Math.random() < Math.min(0.2, (w - 5) * 0.007);
     const scale = elite ? 1.3 : 1;
     const hp = at ? at.hp : def.hp * waveHpMult(w) * (elite ? 4 : 1);
@@ -283,7 +287,7 @@ export class Game {
       attacking: false, atkTimer: Math.random() * 0.5,
       stunT: 0, stunImm: 0, shredT: 0, knockCd: 0, markT: 0, burnT: 0, burnDps: 0, kx: 0, kz: 0, flash: 0,
       wobble: Math.random() * 10, dead: false, d2: 0,
-      barrier: 0, hitT: -99, child: !!at,
+      barrier: 0, hitT: -99, child: !!at, escortT: def.escort ? 3 : 0,
     };
     if (at) { e.x = at.x; e.z = at.z; }
     if (hz.shield && (boss || Math.random() < 0.5)) e.barrier = hp * (boss ? 0.5 : 1);
@@ -561,6 +565,36 @@ export class Game {
     });
   }
 
+  // ───────────────────────────── dreadnought artillery ─────────────────────────────
+  // Lobbed shells: visible ~1.3s arc from the barge to the hull, so the hit lands after the launch.
+  fireShell(e) {
+    const mesh = this.world.acquireProjectile(true);
+    mesh.scale.setScalar(3);
+    this.shells.push({ mesh, sx: e.x, sy: e.y + 2, sz: e.z, t: 0, dur: 1.3, dmg: e.dmg * (1 + this.siege), src: e });
+    this.world.flash(_v.set(e.x, e.y + 2, e.z), 1.6, COLORS.amber, 0.2);
+    sfx.play('launch');
+  }
+
+  updateShells(dt) {
+    for (let i = this.shells.length - 1; i >= 0; i--) {
+      const sh = this.shells[i];
+      sh.t += dt;
+      const k = Math.min(1, sh.t / sh.dur);
+      const ex = sh.sx * 0.18, ez = sh.sz * 0.18, ey = 5;           // lands on the hull's outer ring
+      const x = sh.sx + (ex - sh.sx) * k, z = sh.sz + (ez - sh.sz) * k;
+      const y = sh.sy + (ey - sh.sy) * k + Math.sin(k * Math.PI) * 9;
+      sh.mesh.position.set(x, y, z);
+      if (Math.random() < 0.6) this.world.sparks.emit(x, y, z, 0, 0.5, 0, COLORS.amber, 0.35, 0);
+      if (k >= 1) {
+        this.world.releaseProjectile(sh.mesh);
+        this.shells.splice(i, 1);
+        this.world.explosion(_v.set(x, y, z), 3, COLORS.amber);
+        sfx.play('explosion');
+        this.damageTower(sh.dmg, null);
+      }
+    }
+  }
+
   // ───────────────────────────── drone bay ─────────────────────────────
   // Each drone orbits the tower until something is in range, then dives, strikes (splash + paint) and
   // hovers above the strike point while it recharges, diving again from there. It only flies home to
@@ -738,7 +772,7 @@ export class Game {
     if (e.boss) {
       this.bossKills++;
       this.ui.hideBoss();
-      this.ui.toast('Leviathan destroyed! +15 ◈ bonus on extraction');
+      this.ui.toast(`${e.def.name} destroyed! +15 ◈ bonus on extraction`);
     }
     if (s.coreSiphon > 0 && Math.random() < s.coreSiphon) {
       const n = 1 + Math.floor(this.wave / 25);
@@ -763,6 +797,7 @@ export class Game {
   }
 
   enemyAttack(e) {
+    if (e.def.artillery) { this.fireShell(e); return; }
     if (e.def.ranged) {
       sfx.play('zap');
       this.world.lightning([new THREE.Vector3(e.x, e.y + 0.45, e.z), new THREE.Vector3(e.x * 0.25, 3, e.z * 0.25)], COLORS.red, 0.25, 0.15);
@@ -782,6 +817,19 @@ export class Game {
       if (e.shredT > 0) e.shredT -= dt;
       if (e.knockCd > 0) e.knockCd -= dt;
       if (e.markT > 0) e.markT -= dt;
+      if (def.escort && !frozen && this.state === 'playing' && Math.hypot(e.x, e.z) < SPAWN_RADIUS) {
+        e.escortT -= dt;
+        if (e.escortT <= 0) {
+          e.escortT = def.escort.every;
+          const ek = def.escort.key, ehp = ENEMY_TYPES[ek].hp * waveHpMult(this.wave);
+          for (let i = 0; i < def.escort.n; i++) {
+            const a = Math.random() * Math.PI * 2;
+            this.spawnEnemy(ek, 0, 0, { x: e.x + Math.cos(a) * 2, z: e.z + Math.sin(a) * 2, hp: ehp });
+          }
+          this.world.flash(_v.set(e.x, e.y + 1.5, e.z), 2.5, COLORS.magenta, 0.25);
+          sfx.play('launch');
+        }
+      }
       if (this.hz.regen && e.hp < e.maxHp && this.time - e.hitT > 1) e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.08 * dt);
       if (e.stunImm > 0) e.stunImm -= dt;
       if (e.burnT > 0) {

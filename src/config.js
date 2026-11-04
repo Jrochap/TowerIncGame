@@ -44,7 +44,12 @@ export const ENEMY_TYPES = {
   juggernaut: { name: 'Juggernaut', hp: 60,  speed: 1.7, dmg: 14,  cogs: 6,   radius: 1.35, y: 1.3,  minWave: 6,  weight: 2.2, bar: true, atkRate: 1.4 },
   swarm:      { name: 'Swarmling',  hp: 4,   speed: 4.8, dmg: 1.5, cogs: 0.6, radius: 0.4,  y: 0.45, minWave: 8,  weight: 2.5, group: 6 },
   sniper:     { name: 'Arc Sniper', hp: 22,  speed: 2.6, dmg: 7,   cogs: 3,   radius: 0.75, y: 0.95, minWave: 12, weight: 1.8, ranged: 13, atkRate: 2.2, bar: true },
-  boss:       { name: 'Leviathan',  hp: 500, speed: 1.0, dmg: 30,  cogs: 80,  radius: 2.8,  y: 3.2,  minWave: Infinity, weight: 0, bar: true, atkRate: 1.8 },
+  boss:       { name: 'Leviathan',  hp: 500, speed: 1.0, dmg: 30,  cogs: 80,  radius: 2.8,  y: 3.2,  minWave: Infinity, weight: 0, bar: true, atkRate: 1.8, boss: true,
+                title: 'LEVIATHAN-CLASS ENGINE', alert: 'LEVIATHAN SIGNATURE DETECTED' },
+  // Parks at artillery range, lobs heavy shells and launches flying escorts: a range + defense check.
+  dread:      { name: 'Dreadnought', hp: 1100, speed: 1.6, dmg: 32, cogs: 100, radius: 2.6, y: 1.6, minWave: Infinity, weight: 0, bar: true, atkRate: 3, boss: true,
+                ranged: 27, artillery: true, escort: { every: 7, n: 3, key: 'skitter' },
+                title: 'DREADNOUGHT-CLASS SIEGE BARGE', alert: 'DREADNOUGHT ON THE HORIZON · ARTILLERY INBOUND' },
 };
 
 // exponential with a gentle quadratic term so late waves ramp hard and runs stay a reasonable length

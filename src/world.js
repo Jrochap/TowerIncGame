@@ -29,7 +29,7 @@ const MAT = {
 
 const ENEMY_DEATH_COLOR = {
   scrapper: COLORS.red, skitter: COLORS.magenta, juggernaut: COLORS.amber,
-  swarm: COLORS.green, sniper: COLORS.purple, boss: COLORS.red,
+  swarm: COLORS.green, sniper: COLORS.purple, boss: COLORS.red, dread: COLORS.amber,
 };
 
 function makeGear(r, teeth, depth, td, hole, spokes = 5) {
@@ -480,6 +480,20 @@ export class World {
         const barrel = m(G.cyl, MAT.steel, 0.1, 1.8, 0.1, 0, 0.45, 0.7); barrel.rotation.x = Math.PI / 2;
         m(G.sphere, MAT.purple, 0.16, 0.16, 0.16, 0, 0.45, 1.6);
         m(G.box, MAT.purple, 0.5, 0.08, 0.05, 0, 0.1, 0.56);
+        break;
+      }
+      case 'dread': { // armoured hover-barge with a deck gun and twin smokestacks (bow = +z)
+        m(G.box, MAT.dark, 3.2, 1.1, 4.6);
+        m(G.box, MAT.steel, 2.4, 0.5, 3.2, 0, 0.75, -0.2);
+        m(G.octa, MAT.steel, 1.6, 0.55, 1.3, 0, 0, 2.4);
+        m(G.cyl, MAT.brass, 0.95, 0.6, 0.95, 0, 1.25, 0.3);
+        const barrel = m(G.cyl, MAT.dark, 0.24, 2.2, 0.24, 0, 1.85, 1.2); barrel.rotation.x = 1.05;
+        for (const sx of [-0.8, 0.8]) {
+          m(G.cyl, MAT.copper, 0.34, 1.5, 0.34, sx, 1.5, -1.6);
+          m(G.sphere, MAT.amber, 0.2, 0.2, 0.2, sx, 2.3, -1.6);
+          m(G.box, MAT.red, 0.08, 0.14, 3.8, sx * 2.03, 0.1, 0);
+        }
+        m(G.sphere, MAT.amber, 1.7, 0.1, 2.3, 0, -0.62, 0);
         break;
       }
       case 'boss': {
