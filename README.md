@@ -4,6 +4,8 @@ A cyberpunk/steampunk tower-defense × incremental game in Three.js. You run one
 tower. Endless waves of scrap-bots attack it until it's overwhelmed. Between runs you spend Aether
 Cores in a large Skill Matrix, then deploy again and get further.
 
+**▶ Play it: https://jrochap.github.io/TowerIncGame/**
+
 ## Run it
 
 It uses ES modules and a CDN import map, so it has to be served over HTTP. Opening `index.html`
